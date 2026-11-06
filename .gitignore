@@ -12,10 +12,13 @@ ENV/
 # Streamlit
 .streamlit/secrets.toml
 
-# Data Files (large datasets)
+# Data Files (large datasets & local databases)
 data/synthesized/*.csv
 data/synthesized/*.parquet
 !data/synthesized/.gitkeep
+*.db
+*.sqlite
+*.sqlite3
 *.log
 
 # Environment variables
