@@ -26,6 +26,22 @@ from src.managers.analytics_manager import AnalyticsManager
 class TestOOPBackend(unittest.TestCase):
     """End-to-end unit and integration tests for Phase 3 OOP architecture."""
 
+    def setUp(self):
+        """Clean up test records before each test."""
+        db = get_db()
+        test_emp_id = "EMP-TEST999"
+        backend = db.get_backend_name()
+        if backend == "mysql":
+            db.execute_update("DELETE FROM enterprise_hr_oltp.employees WHERE employee_id = %s", (test_emp_id,))
+            db.execute_update("DELETE FROM enterprise_hr_dw.Dim_Employee WHERE employee_id = %s", (test_emp_id,))
+        else:
+            db.execute_update("DELETE FROM employees_oltp WHERE employee_id = %s", (test_emp_id,))
+            db.execute_update("DELETE FROM Dim_Employee WHERE employee_id = %s", (test_emp_id,))
+
+    def tearDown(self):
+        """Clean up test records after each test."""
+        self.setUp()
+
     def test_01_singleton_pattern(self):
         """Validates that DatabaseConnection is a true thread-safe Singleton."""
         db1 = get_db()
