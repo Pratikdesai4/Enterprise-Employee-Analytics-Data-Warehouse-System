@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-11-06T20:05:30.526503",
+  "config": {
+    "num_employees": 100000,
+    "scd2_historical_ratio": 0.25,
+    "num_projects": 60,
+    "random_seed": 42
+  },
+  "record_counts": {
+    "departments": 5,
+    "projects": 60,
+    "employees_oltp_current": 100000,
+    "employees_scd2_full": 125000,
+    "project_assignments": 39880,
+    "performance_reviews": 183146
+  },
+  "scd2_breakdown": {
+    "total_records": 125000,
+    "current_active_records": 100000,
+    "historical_expired_records": 25000
+  }
+}

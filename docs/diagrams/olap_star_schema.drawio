@@ -1,0 +1,73 @@
+<mxfile host="app.diagrams.net" modified="2026-11-06T14:35:00.000Z" agent="Antigravity Enterprise Architect" version="21.6.8" type="device">
+  <diagram id="olap-star-schema" name="OLAP Dimensional Star Schema (SCD Type 2)">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="Enterprise Employee Analytics - OLAP Star Schema (SCD Type 2 Dimensional Model)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="180" y="20" width="800" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- CENTRAL FACT TABLE: Fact_PerformanceReviews -->
+        <mxCell id="fact_header" value="Fact_PerformanceReviews" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#EF4444;fontColor=#FFFFFF;strokeColor=#DC2626;" vertex="1" parent="1">
+          <mxGeometry x="430" y="240" width="310" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="fact_c1" value="+ review_fact_id: BIGINT [PK]&#xa;# employee_dim_id: BIGINT [FK - Dim_Employee]&#xa;# department_dim_id: INT [FK - Dim_Department]&#xa;# project_dim_id: INT [FK - Dim_Project]&#xa;# date_dim_id: INT [FK - Dim_Date]&#xa;-- Degenerate Dimensions --&#xa;* review_id: INT&#xa;* employee_id: VARCHAR(20)&#xa;-- Additive &amp; Semi-Additive Measures --&#xa;* performance_rating: INT&#xa;* monthly_income_at_review: DECIMAL(12,2)&#xa;* percent_salary_hike: DECIMAL(5,2)&#xa;* work_life_balance: INT&#xa;* job_satisfaction: INT&#xa;* environment_satisfaction: INT&#xa;* attrition_risk_score: INT&#xa;* tenure_at_review: INT&#xa;* promotion_given: TINYINT(1)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=8;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontColor=#0F172A;" vertex="1" parent="fact_header">
+          <mxGeometry y="28" width="310" height="302" as="geometry" />
+        </mxCell>
+
+        <!-- DIMENSION 1: Dim_Employee (SCD Type 2) -->
+        <mxCell id="dim_emp_header" value="Dim_Employee (SCD Type 2)" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#3B82F6;fontColor=#FFFFFF;strokeColor=#1D4ED8;" vertex="1" parent="1">
+          <mxGeometry x="50" y="80" width="280" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="dim_emp_c1" value="+ employee_dim_id: BIGINT [Surrogate PK]&#xa;* employee_id: VARCHAR(20) [Business Key]&#xa;* first_name: VARCHAR(50)&#xa;* last_name: VARCHAR(50)&#xa;* gender: VARCHAR(10)&#xa;* age: INT&#xa;* hire_date: DATE&#xa;* department_name: VARCHAR(100)&#xa;* job_role: VARCHAR(100)&#xa;* education_field: VARCHAR(100)&#xa;* monthly_income: DECIMAL(12,2)&#xa;-- SCD Type 2 Temporal Metadata --&#xa;* start_date: DATE [Effective Start]&#xa;* end_date: DATE [Effective End / NULL]&#xa;* is_current: TINYINT(1) [Active Flag]&#xa;* version: INT [Version Sequence]" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=8;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontColor=#0F172A;" vertex="1" parent="dim_emp_header">
+          <mxGeometry y="28" width="280" height="302" as="geometry" />
+        </mxCell>
+
+        <!-- DIMENSION 2: Dim_Department -->
+        <mxCell id="dim_dept_header" value="Dim_Department" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#10B981;fontColor=#FFFFFF;strokeColor=#047857;" vertex="1" parent="1">
+          <mxGeometry x="50" y="470" width="260" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="dim_dept_c1" value="+ department_dim_id: INT [Surrogate PK]&#xa;* department_id: INT [Business Key]&#xa;* department_name: VARCHAR(100)&#xa;* cost_center: VARCHAR(20)&#xa;* budget: DECIMAL(15,2)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=8;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontColor=#0F172A;" vertex="1" parent="dim_dept_header">
+          <mxGeometry y="28" width="260" height="142" as="geometry" />
+        </mxCell>
+
+        <!-- DIMENSION 3: Dim_Project -->
+        <mxCell id="dim_proj_header" value="Dim_Project" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#8B5CF6;fontColor=#FFFFFF;strokeColor=#6D28D9;" vertex="1" parent="1">
+          <mxGeometry x="850" y="100" width="260" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="dim_proj_c1" value="+ project_dim_id: INT [Surrogate PK]&#xa;* project_id: INT [Business Key]&#xa;* project_code: VARCHAR(20)&#xa;* project_name: VARCHAR(150)&#xa;* budget_tier: VARCHAR(30)&#xa;* status: VARCHAR(30)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=8;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontColor=#0F172A;" vertex="1" parent="dim_proj_header">
+          <mxGeometry y="28" width="260" height="172" as="geometry" />
+        </mxCell>
+
+        <!-- DIMENSION 4: Dim_Date -->
+        <mxCell id="dim_date_header" value="Dim_Date" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#F59E0B;fontColor=#FFFFFF;strokeColor=#D97706;" vertex="1" parent="1">
+          <mxGeometry x="850" y="440" width="260" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="dim_date_c1" value="+ date_dim_id: INT [Surrogate PK - YYYYMMDD]&#xa;* full_date: DATE&#xa;* year: INT&#xa;* quarter: INT&#xa;* month: INT&#xa;* month_name: VARCHAR(20)&#xa;* day_of_month: INT&#xa;* day_name: VARCHAR(20)&#xa;* is_weekend: TINYINT(1)&#xa;* fiscal_year: VARCHAR(10)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=8;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontColor=#0F172A;" vertex="1" parent="dim_date_header">
+          <mxGeometry y="28" width="260" height="222" as="geometry" />
+        </mxCell>
+
+        <!-- STAR SCHEMA RELATIONSHIPS (All radiate from dimensions to Fact table) -->
+        <mxCell id="rel_dim_emp_fact" value="1:N" style="endArrow=crow;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#2563EB;" edge="1" parent="1" source="dim_emp_header" target="fact_header">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rel_dim_dept_fact" value="1:N" style="endArrow=crow;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#10B981;" edge="1" parent="1" source="dim_dept_header" target="fact_header">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rel_dim_proj_fact" value="1:N" style="endArrow=crow;html=1;rounded=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#8B5CF6;" edge="1" parent="1" source="dim_proj_header" target="fact_header">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rel_dim_date_fact" value="1:N" style="endArrow=crow;html=1;rounded=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#F59E0B;" edge="1" parent="1" source="dim_date_header" target="fact_header">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
