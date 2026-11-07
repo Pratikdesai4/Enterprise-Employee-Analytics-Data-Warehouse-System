@@ -1,9 +1,10 @@
 """
 Enterprise Employee Analytics & Data Warehouse System
 ======================================================
-Main Streamlit Application Entrypoint & Executive Overview
+Executive Landing Portal & Enterprise System Overview
 
 Author: Enterprise Data Architecture Team
+Design: Professional Enterprise UI
 """
 
 import streamlit as st
@@ -13,56 +14,101 @@ from src.managers.analytics_manager import AnalyticsManager
 
 # Streamlit Page Configuration
 st.set_page_config(
-    page_title="Enterprise Employee Analytics",
-    page_icon="🏢",
+    page_title="Enterprise Data Warehouse Portal",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom Styling
+# Professional Enterprise Theme Styling
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.2rem;
+    /* Main Layout & Headers */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    .enterprise-header {
+        font-size: 1.85rem;
         font-weight: 700;
         color: #0F172A;
-        margin-bottom: 0.2rem;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.25rem;
     }
-    .sub-header {
-        font-size: 1.05rem;
+    .enterprise-sub {
+        font-size: 0.95rem;
         color: #475569;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.75rem;
+        line-height: 1.5;
     }
-    .kpi-card {
+    
+    /* Metrics & KPI Cards */
+    .kpi-container {
         background-color: #FFFFFF;
         border: 1px solid #E2E8F0;
-        border-radius: 10px;
-        padding: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        text-align: center;
+        border-radius: 6px;
+        padding: 1.25rem 1rem;
+        text-align: left;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        border-top: 3px solid #1E40AF;
     }
-    .kpi-value {
-        font-size: 2rem;
+    .kpi-num {
+        font-size: 1.75rem;
         font-weight: 700;
-        color: #2563EB;
+        color: #0F172A;
+        font-feature-settings: "tnum";
     }
-    .kpi-label {
-        font-size: 0.85rem;
+    .kpi-title {
+        font-size: 0.75rem;
+        font-weight: 600;
         color: #64748B;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.05em;
+        margin-top: 0.25rem;
     }
-    .module-card {
-        background: linear-gradient(135deg, #FFFFFF 0%, #F1F5F9 100%);
-        border: 1px solid #CBD5E1;
-        border-radius: 12px;
-        padding: 24px;
+
+    /* Portal Navigation Cards */
+    .portal-card {
+        background-color: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 1.5rem;
         height: 100%;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     }
-    .module-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    .portal-card h4 {
+        margin-top: 0;
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: #0F172A;
+    }
+    .portal-card p {
+        font-size: 0.88rem;
+        color: #475569;
+        line-height: 1.5;
+    }
+    .portal-card ul {
+        margin-bottom: 1rem;
+        padding-left: 1.25rem;
+        font-size: 0.85rem;
+        color: #334155;
+    }
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.65rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background-color: #DCFCE7;
+        color: #166534;
+        border: 1px solid #BBF7D0;
+    }
+    .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background-color: #16A34A;
+        margin-right: 6px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -70,22 +116,24 @@ st.markdown("""
 
 def main():
     # Sidebar
-    st.sidebar.image("https://img.icons8.com/fluency/96/organization.png", width=64)
-    st.sidebar.title("Enterprise DW Portal")
-    st.sidebar.markdown("**System Architecture: 2-Tier**")
-    st.sidebar.markdown("- **OLTP:** 3NF Operational Backend")
-    st.sidebar.markdown("- **OLAP:** Star Schema Data Warehouse")
-    st.sidebar.markdown("- **Tracking:** SCD Type 2 Active")
+    st.sidebar.markdown("### System Architecture")
+    st.sidebar.markdown("**Operational Store (OLTP):** 3NF Relational")
+    st.sidebar.markdown("**Data Warehouse (OLAP):** Star Schema")
+    st.sidebar.markdown("**Temporal Model:** SCD Type 2 Active")
     st.sidebar.divider()
 
     db = get_db()
     backend_name = db.get_backend_name().upper()
-    st.sidebar.success(f"🟢 Connected to: **{backend_name}**")
+    st.sidebar.markdown(f"""
+    <div class="status-badge">
+        <span class="status-dot"></span>Backend: {backend_name}
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Header
-    st.markdown('<div class="main-header">🏢 Enterprise Employee Analytics & Data Warehouse System</div>', unsafe_allow_html=True)
+    # Main Header
+    st.markdown('<div class="enterprise-header">Enterprise Employee Analytics & Data Warehouse System</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="sub-header">Centralized Data Platform with Real-Time SCD Type 2 Career Tracking & Star Schema Analytics</div>',
+        '<div class="enterprise-sub">Unified Operational Data Store (OLTP) and Dimensional Warehouse (OLAP) with Automated Slowly Changing Dimension (SCD Type 2) Lifecycle Tracking.</div>',
         unsafe_allow_html=True
     )
 
@@ -95,7 +143,7 @@ def main():
     try:
         kpis = analytics_mgr.get_executive_kpis()
     except Exception as e:
-        st.error(f"Error connecting to warehouse: {e}")
+        st.error(f"Error querying data warehouse: {e}")
         kpis = {
             "total_active_employees": 0,
             "avg_monthly_salary": 0.0,
@@ -110,41 +158,41 @@ def main():
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.markdown(f"""
-        <div class="kpi-card">
-            <div class="kpi-value">{kpis['total_active_employees']:,}</div>
-            <div class="kpi-label">Active Employees</div>
+        <div class="kpi-container">
+            <div class="kpi-num">{kpis['total_active_employees']:,}</div>
+            <div class="kpi-title">Active Workforce</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col2:
         st.markdown(f"""
-        <div class="kpi-card">
-            <div class="kpi-value">${kpis['avg_monthly_salary']:,.0f}</div>
-            <div class="kpi-label">Avg Monthly Salary</div>
+        <div class="kpi-container">
+            <div class="kpi-num">${kpis['avg_monthly_salary']:,.0f}</div>
+            <div class="kpi-title">Avg Monthly Compensation</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col3:
         st.markdown(f"""
-        <div class="kpi-card">
-            <div class="kpi-value">{kpis['avg_performance_rating']:.2f} / 5.0</div>
-            <div class="kpi-label">Avg Performance Rating</div>
+        <div class="kpi-container">
+            <div class="kpi-num">{kpis['avg_performance_rating']:.2f} <span style="font-size:0.9rem; color:#64748B;">/ 5.0</span></div>
+            <div class="kpi-title">Avg Performance Score</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col4:
         st.markdown(f"""
-        <div class="kpi-card">
-            <div class="kpi-value">{kpis['avg_attrition_risk']:.1f}%</div>
-            <div class="kpi-label">Avg Attrition Risk</div>
+        <div class="kpi-container">
+            <div class="kpi-num">{kpis['avg_attrition_risk']:.1f}%</div>
+            <div class="kpi-title">Attrition Flight Risk</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col5:
         st.markdown(f"""
-        <div class="kpi-card">
-            <div class="kpi-value">{kpis['career_transitioned_employees']:,}</div>
-            <div class="kpi-label">SCD2 Historical Transitions</div>
+        <div class="kpi-container">
+            <div class="kpi-num">{kpis['career_transitioned_employees']:,}</div>
+            <div class="kpi-title">SCD2 Historical Transitions</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -152,55 +200,51 @@ def main():
     st.write("")
 
     # Portal Module Navigation Cards
-    st.subheader("🚀 Navigate to Application Portals")
+    st.markdown("### Functional Modules")
     card_col1, card_col2 = st.columns(2)
 
     with card_col1:
         st.markdown("""
-        <div class="module-card">
-            <h3>📝 HR Operations Portal (OLTP)</h3>
-            <p style="color: #475569;">
-                Manage operational day-to-day HR records, onboarding, and project staff allocations:
-            </p>
+        <div class="portal-card">
+            <h4>HR Operations Management (OLTP)</h4>
+            <p>Transactional console for personnel records, project staffing, and career progression management:</p>
             <ul>
-                <li><strong>Onboard Employees:</strong> Form with strict domain validation & unique corporate email.</li>
-                <li><strong>Career & Role Updates:</strong> Change an employee's department or salary and immediately trigger an <strong>SCD Type 2 version update</strong> in the Data Warehouse.</li>
-                <li><strong>Project Management:</strong> Launch initiatives and allocate staff workloads.</li>
-                <li><strong>Submit Appraisals:</strong> Record performance ratings and satisfaction metrics.</li>
+                <li><strong>Personnel Onboarding:</strong> Standardized data intake with corporate email and credential validation.</li>
+                <li><strong>Role & Compensation Transitions:</strong> Adjust department, title, or compensation with real-time <strong>SCD Type 2</strong> versioning in the data warehouse.</li>
+                <li><strong>Initiative Resource Allocation:</strong> Provision client and internal projects and allocate staffing capacity.</li>
+                <li><strong>Performance Appraisals:</strong> Log annual appraisals and synchronize with fact tables.</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
-        st.page_link("pages/1_HR_Operations.py", label="Open HR Operations Portal →", icon="📝")
+        st.page_link("pages/1_HR_Operations.py", label="Access HR Operations Portal →")
 
     with card_col2:
         st.markdown("""
-        <div class="module-card">
-            <h3>📊 Executive Analytics Dashboard (OLAP)</h3>
-            <p style="color: #475569;">
-                Interactive intelligence dashboards powered directly by the <strong>Dimensional Star Schema</strong>:
-            </p>
+        <div class="portal-card">
+            <h4>Executive Analytics & Business Intelligence (OLAP)</h4>
+            <p>Dimensional analytics powered directly by the Star Schema and advanced SQL window functions:</p>
             <ul>
-                <li><strong>Top Performers:</strong> Dynamic leaderboards powered by SQL <code>DENSE_RANK()</code>.</li>
-                <li><strong>YoY Performance & Salary Trends:</strong> Longitudinal velocity across 2021–2025.</li>
-                <li><strong>Attrition Risk Matrix:</strong> Correlation heatmaps of flight risk vs overtime and compensation.</li>
-                <li><strong>SCD Type 2 Audit Trail:</strong> Historical career progression and promotion salary lift.</li>
+                <li><strong>Department Talent Rankings:</strong> Departmental performance tiers determined via SQL <code>DENSE_RANK()</code>.</li>
+                <li><strong>Longitudinal YoY Trajectories:</strong> Multi-year evaluation of merit salary adjustments and ratings.</li>
+                <li><strong>Flight Risk Diagnostics:</strong> Correlation models identifying compensation anomalies and turnover risk.</li>
+                <li><strong>Career Mobility Audits:</strong> Full historical SCD Type 2 career transitions and salary progression.</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
-        st.page_link("pages/2_Executive_Analytics.py", label="Open Executive Analytics Dashboard →", icon="📊")
+        st.page_link("pages/2_Executive_Analytics.py", label="Access Executive Analytics Dashboard →")
 
     st.divider()
 
-    # System Architecture Diagram & Concepts
-    with st.expander("ℹ️ Data Warehouse & SCD Type 2 Technical Architecture", expanded=False):
+    # System Architecture Information
+    with st.expander("System Architecture & Data Warehousing Specifications", expanded=False):
         st.markdown("""
-        ### Architecture Highlights
-        - **Operational Layer (OLTP - 3NF):** High-concurrency relational model holding active states across `employees`, `departments`, `projects`, and `employee_project_assignments`.
-        - **Dimensional Warehouse (OLAP - Star Schema):** Centered on `Fact_PerformanceReviews` linked to conformed dimensions (`Dim_Department`, `Dim_Project`, `Dim_Date`) and the Slowly Changing Dimension `Dim_Employee`.
-        - **SCD Type 2 Lifecycle:**
-          - Whenever an employee experiences a promotion, department transfer, or salary adjustment, the existing warehouse row is **expired** (`end_date = CURRENT_DATE, is_current = 0`).
-          - A new successor record is inserted (`start_date = CURRENT_DATE, is_current = 1, version = old_version + 1`).
-          - Historical performance reviews remain linked to the exact version valid at appraisal time!
+        #### Architecture Overview
+        - **OLTP Operational Store (3NF):** High-integrity relational schema handling transaction processing across `employees`, `departments`, `projects`, and `employee_project_assignments`.
+        - **OLAP Dimensional Warehouse (Star Schema):** Modeled around `Fact_PerformanceReviews` with integer surrogate keys referencing conformed dimensions (`Dim_Department`, `Dim_Project`, `Dim_Date`) and the temporal Slowly Changing Dimension (`Dim_Employee`).
+        - **SCD Type 2 Execution:**
+          - Department transfers, title changes, or compensation modifications trigger the expiration of the current active dimension record (`end_date = CURRENT_DATE, is_current = 0`).
+          - A successor record is appended (`start_date = CURRENT_DATE, end_date = NULL, is_current = 1, version = n + 1`).
+          - Past appraisals remain tied to their respective historical versions without retroactive disruption.
         """)
 
 
