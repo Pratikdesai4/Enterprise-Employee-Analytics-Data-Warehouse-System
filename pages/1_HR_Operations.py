@@ -73,30 +73,30 @@ with tabs[0]:
     st.subheader("Onboard New Employee")
     st.caption("Inserts operational record in OLTP and provisions initial version (Version 1) in Dim_Employee.")
 
-    with st.form("onboard_form", clear_on_submit=True):
+    with st.form("onboard_form", clear_on_submit=False):
         col1, col2, col3 = st.columns(3)
         with col1:
-            emp_id_input = st.text_input("Employee ID *", value=f"EMP-{datetime.datetime.now().strftime('%m%d%H%M')}")
-            first_name = st.text_input("First Name *", placeholder="e.g. John")
-            last_name = st.text_input("Last Name *", placeholder="e.g. Smith")
-            email = st.text_input("Corporate Email *", placeholder="e.g. john.smith@enterprise.corp")
-            phone = st.text_input("Phone Number *", placeholder="+1-555-010-0200")
+            emp_id_input = st.text_input("Employee ID *", value="EMP-900004", help="Unique business identifier")
+            first_name = st.text_input("First Name *", value="Sophia")
+            last_name = st.text_input("Last Name *", value="Miller")
+            email = st.text_input("Corporate Email *", value="sophia.miller@enterprise.corp")
+            phone = st.text_input("Phone Number *", value="+1-555-829-4100")
 
         with col2:
-            gender = st.selectbox("Gender *", ["Male", "Female", "Non-Binary", "Other"])
-            age = st.number_input("Age *", min_value=18, max_value=75, value=28)
+            gender = st.selectbox("Gender *", ["Female", "Male", "Non-Binary", "Other"])
+            age = st.number_input("Age *", min_value=18, max_value=75, value=29)
             marital_status = st.selectbox("Marital Status *", ["Single", "Married", "Divorced"])
             hire_date = st.date_input("Hire Date *", value=datetime.date.today())
             overtime = st.selectbox("Overtime Eligible", ["No", "Yes"])
 
         with col3:
-            dept_selected = st.selectbox("Department *", list(dept_dict.keys()))
-            job_role = st.text_input("Job Role / Title *", placeholder="e.g. Software Engineer")
+            dept_selected = st.selectbox("Department *", list(dept_dict.keys()), index=3 if len(dept_dict) > 3 else 0)
+            job_role = st.text_input("Job Role / Title *", value="Software Engineer")
             education = st.selectbox("Education Field *", [
                 "Computer Science", "Life Sciences", "Medical", "Marketing",
                 "Technical Degree", "Finance", "Human Resources", "Other"
             ])
-            monthly_income = st.number_input("Monthly Income ($USD) *", min_value=1000.0, max_value=50000.0, value=7500.0, step=250.0)
+            monthly_income = st.number_input("Monthly Income ($USD) *", min_value=1000.0, max_value=50000.0, value=8500.0, step=250.0)
 
         submitted = st.form_submit_button("Submit Onboarding Transaction", type="primary")
 
@@ -121,7 +121,9 @@ with tabs[0]:
                     status="Active"
                 )
                 emp_mgr.onboard_employee(new_emp)
-                st.success(f"✅ Employee **{new_emp.full_name}** ({new_emp.employee_id}) onboarded successfully into OLTP and synced with Dim_Employee (Version 1)!")
+                st.session_state["target_emp_id"] = new_emp.employee_id
+                st.success(f"✅ Employee **{new_emp.full_name}** (`{new_emp.employee_id}`) onboarded successfully into OLTP and synced with Dim_Employee (Version 1)!")
+                st.info(f"👉 To promote or reassign this employee, go to the **Career & Role Reassignment (SCD Type 2)** tab — Employee ID `{new_emp.employee_id}` is already selected for you!")
             except Exception as e:
                 st.error(f"❌ Onboarding Failed: {e}")
 
@@ -137,16 +139,26 @@ with tabs[1]:
     3. A new active record is **inserted** (`start_date = CURRENT_DATE, is_current = 1, version = old_version + 1`).
     """)
 
-    lookup_col1, lookup_col2 = st.columns([3, 1])
+    # Quick Select Options from live database
+    try:
+        sample_emps = emp_mgr.list_employees(limit=20)
+        sample_options = {f"{e.employee_id} - {e.full_name} ({e.job_role})": e.employee_id for e in sample_emps}
+    except Exception:
+        sample_options = {}
+
+    lookup_col1, lookup_col2 = st.columns([2, 1])
     with lookup_col1:
-        target_emp_id = st.text_input("Enter Employee ID to Update:", value="EMP-000001", help="Enter exact ID e.g. EMP-000001")
+        default_val = st.session_state.get("target_emp_id", "EMP-000001")
+        target_emp_id = st.text_input("Enter Employee ID or Name to Update:", value=default_val, help="Search by ID (e.g. EMP-000001, EMP-900004) or full name")
     with lookup_col2:
-        search_clicked = st.button("Lookup Employee", type="secondary", use_container_width=True)
+        quick_select = st.selectbox("Or Quick-Select from Active Roster:", ["-- Select Employee --"] + list(sample_options.keys()))
+        if quick_select != "-- Select Employee --":
+            target_emp_id = sample_options[quick_select]
 
     curr_emp = emp_mgr.get_employee(target_emp_id.strip())
 
     if curr_emp:
-        st.info(f"**Loaded:** {curr_emp.full_name} | Current Role: **{curr_emp.job_role}** | Department: **{curr_emp.department_name}** | Monthly Salary: **${curr_emp.monthly_income:,.2f}**")
+        st.info(f"**Loaded:** {curr_emp.full_name} (`{curr_emp.employee_id}`) | Current Role: **{curr_emp.job_role}** | Department: **{curr_emp.department_name}** | Monthly Salary: **${curr_emp.monthly_income:,.2f}**")
 
         st.markdown("#### Enter Career & Compensation Transition:")
         with st.form("scd2_update_form"):
@@ -202,7 +214,7 @@ with tabs[1]:
         else:
             st.warning("No warehouse version records found for this employee.")
     else:
-        st.warning(f"Employee `{target_emp_id}` not found. Please verify the Employee ID.")
+        st.warning(f"Employee `{target_emp_id}` not found. Please verify the Employee ID or select from the dropdown above.")
 
 # =============================================================================
 # TAB 3: PROJECT INITIATIVES & STAFFING ALLOCATION

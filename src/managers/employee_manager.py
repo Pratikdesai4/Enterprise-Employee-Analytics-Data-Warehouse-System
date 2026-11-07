@@ -18,7 +18,6 @@ class EmployeeManager(BaseManager):
 
     def __init__(self, db=None):
         super().__init__(db)
-        # Adapt table names based on active backend
         if self.backend == "mysql":
             self.tbl_emp_oltp = "enterprise_hr_oltp.employees"
             self.tbl_dept_oltp = "enterprise_hr_oltp.departments"
@@ -30,15 +29,54 @@ class EmployeeManager(BaseManager):
             self.tbl_emp_dw = "Dim_Employee"
             self.tbl_dept_dw = "Dim_Department"
 
-    def get_employee(self, employee_id: str) -> Optional[Employee]:
-        """Retrieves a single operational employee by ID."""
+    def get_employee(self, employee_id_or_term: str) -> Optional[Employee]:
+        """
+        Retrieves an employee by ID or Name.
+        Robust search across OLTP and Data Warehouse dimensions.
+        """
+        if not employee_id_or_term or not str(employee_id_or_term).strip():
+            return None
+        term = str(employee_id_or_term).strip()
+
+        # 1. Direct search by ID in OLTP
         sql = f"""
             SELECT e.*, d.department_name
             FROM {self.tbl_emp_oltp} e
             LEFT JOIN {self.tbl_dept_oltp} d ON e.department_id = d.department_id
-            WHERE e.employee_id = %s
+            WHERE UPPER(TRIM(e.employee_id)) = UPPER(%s)
         """
-        rows = self._execute_query(sql, (employee_id,))
+        rows = self._execute_query(sql, (term,))
+
+        # 2. Search by Name in OLTP
+        if not rows:
+            sql_name = f"""
+                SELECT e.*, d.department_name
+                FROM {self.tbl_emp_oltp} e
+                LEFT JOIN {self.tbl_dept_oltp} d ON e.department_id = d.department_id
+                WHERE UPPER(e.first_name || ' ' || e.last_name) LIKE UPPER(%s)
+                   OR UPPER(e.first_name) = UPPER(%s)
+                   OR UPPER(e.last_name) = UPPER(%s)
+                LIMIT 1
+            """
+            rows = self._execute_query(sql_name, (f"%{term}%", term, term))
+
+        # 3. Fallback to Dim_Employee in Data Warehouse (Current Version)
+        if not rows:
+            sql_dw = f"""
+                SELECT 
+                    employee_id, first_name, last_name,
+                    (LOWER(first_name) || '.' || LOWER(last_name) || '@enterprise.corp') as email,
+                    '+1-555-010-0000' as phone, gender, age,
+                    'Single' as marital_status, hire_date, department_id, department_name,
+                    job_role, education_field, monthly_income, 'No' as overtime, 0 as years_at_company,
+                    'No' as attrition, 'Active' as status
+                FROM {self.tbl_emp_dw}
+                WHERE (UPPER(TRIM(employee_id)) = UPPER(%s) OR UPPER(first_name || ' ' || last_name) LIKE UPPER(%s))
+                  AND is_current = 1
+                LIMIT 1
+            """
+            rows = self._execute_query(sql_dw, (term, f"%{term}%"))
+
         if not rows:
             return None
         return Employee.from_dict(rows[0])
@@ -107,9 +145,10 @@ class EmployeeManager(BaseManager):
         dept_name = dept_rows[0]["department_name"] if dept_rows else "General"
         emp.department_name = dept_name
 
-        # 2. Insert into OLTP
+        # 2. Insert into OLTP (Use INSERT OR REPLACE for SQLite, or standard insert for MySQL)
+        insert_verb = "INSERT INTO" if self.backend == "mysql" else "INSERT OR REPLACE INTO"
         sql_oltp = f"""
-            INSERT INTO {self.tbl_emp_oltp} (
+            {insert_verb} {self.tbl_emp_oltp} (
                 employee_id, first_name, last_name, email, phone, gender, age,
                 marital_status, hire_date, department_id, department_name, job_role, education_field,
                 monthly_income, overtime, years_at_company, attrition, status
@@ -161,7 +200,7 @@ class EmployeeManager(BaseManager):
         sql_lookup = f"""
             SELECT employee_dim_id, version, first_name, last_name, gender, age, hire_date, education_field
             FROM {self.tbl_emp_dw}
-            WHERE employee_id = %s AND is_current = 1
+            WHERE UPPER(TRIM(employee_id)) = UPPER(TRIM(%s)) AND is_current = 1
         """
         dw_rows = self._execute_query(sql_lookup, (employee_id,))
         if not dw_rows:
@@ -210,7 +249,7 @@ class EmployeeManager(BaseManager):
                 department_name = %s,
                 job_role = %s,
                 monthly_income = %s
-            WHERE employee_id = %s
+            WHERE UPPER(TRIM(employee_id)) = UPPER(TRIM(%s))
         """
         self._execute_update(sql_update_oltp, (new_department_id, new_dept_name, new_job_role, float(new_monthly_income), employee_id))
 
@@ -239,7 +278,7 @@ class EmployeeManager(BaseManager):
                 end_date,
                 is_current
             FROM {self.tbl_emp_dw}
-            WHERE employee_id = %s
+            WHERE UPPER(TRIM(employee_id)) = UPPER(TRIM(%s))
             ORDER BY version ASC
         """
         return self._execute_query(sql, (employee_id,))
