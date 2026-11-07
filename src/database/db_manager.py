@@ -2,7 +2,8 @@
 Enterprise Employee Analytics - Database Connection Manager
 ===========================================================
 Thread-safe Singleton Database Manager supporting MySQL with
-automatic fallback to local analytics database.
+automatic fallback to local analytics database and auto-provisioning
+for cloud deployments (e.g. Streamlit Community Cloud).
 
 Author: Enterprise Data Architecture Team
 Design Pattern: Singleton (Gang of Four)
@@ -88,10 +89,56 @@ class DatabaseConnection:
                 pass
 
         # Fallback to local SQLite Data Warehouse
-        if os.path.exists(self.sqlite_path):
-            self._active_backend = "sqlite"
+        self._active_backend = "sqlite"
+        self._ensure_sqlite_ready()
+
+    def _ensure_sqlite_ready(self) -> None:
+        """Auto-provisions schema and data if running for the first time or in cloud."""
+        db_dir = os.path.dirname(self.sqlite_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
+
+        needs_provision = False
+        if not os.path.exists(self.sqlite_path):
+            needs_provision = True
         else:
-            self._active_backend = "sqlite"
+            try:
+                conn = sqlite3.connect(self.sqlite_path)
+                cur = conn.cursor()
+                cur.execute("SELECT 1 FROM Dim_Employee LIMIT 1;")
+                conn.close()
+            except Exception:
+                needs_provision = True
+
+        if needs_provision:
+            print("[Auto-Provisioner] Database or tables not found. Provisioning Data Warehouse...")
+            try:
+                from scripts.run_etl import ETLOrchestrator
+                from scripts.data_synthesizer import SynthesizerConfig, BaseDatasetProfiler, EnterpriseDataSynthesizer
+
+                # Check if synthesized CSVs exist, if not generate them
+                emp_csv = os.path.join("data", "synthesized", "employees_scd2_full.csv")
+                if not os.path.exists(emp_csv):
+                    print("[Auto-Provisioner] Synthesizing initial datasets...")
+                    cfg = SynthesizerConfig(num_employees=10_000, output_dir=os.path.join("data", "synthesized"))
+                    profiler = BaseDatasetProfiler(cfg.base_dataset_path)
+                    profiler.load_and_profile()
+                    synth = EnterpriseDataSynthesizer(cfg, profiler)
+                    synth.generate_departments()
+                    synth.generate_projects()
+                    synth.generate_employees()
+                    synth.generate_project_assignments()
+                    synth.generate_performance_reviews()
+                    synth.export_all()
+
+                # Run ETL
+                etl = ETLOrchestrator(data_dir=os.path.join("data", "synthesized"), db_path=self.sqlite_path)
+                etl.initialize_sqlite_warehouse()
+                etl.populate_dim_date(2018, 2030)
+                etl.load_synthesized_data()
+                print("[Auto-Provisioner] Data Warehouse successfully initialized!")
+            except Exception as e:
+                print(f"[Auto-Provisioner] Error during auto-provisioning: {e}")
 
     def get_backend_name(self) -> str:
         """Returns active database backend ('mysql' or 'sqlite')."""
