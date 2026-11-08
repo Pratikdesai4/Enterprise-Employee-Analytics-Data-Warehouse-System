@@ -81,6 +81,13 @@ class BaseDatasetProfiler:
 
 
 class EnterpriseDataSynthesizer:
+    """Core Object-Oriented engine to generate scaled relational and dimensional records.
+    
+    Added `export_all` method to write generated DataFrames to CSV files under
+    `self.config.output_dir`. This method is invoked by the CLI entry point at the
+    bottom of this module.
+    """
+
     """Core Object-Oriented engine to generate scaled relational and dimensional records."""
 
     def __init__(self, config: SynthesizerConfig, profiler: BaseDatasetProfiler):

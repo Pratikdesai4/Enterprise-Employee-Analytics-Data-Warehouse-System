@@ -98,7 +98,7 @@ CREATE TABLE Fact_PerformanceReviews (
     -- Dimensional Foreign Keys (Surrogate Keys) --
     employee_dim_id BIGINT NOT NULL COMMENT 'FK to Dim_Employee (points to exact version active at review date)',
     department_dim_id INT NOT NULL COMMENT 'FK to Dim_Department',
-    project_dim_id INT NOT NULL COMMENT 'FK to Dim_Project (default 0 if unassigned)',
+    project_dim_id INT NULL DEFAULT 0 COMMENT 'FK to Dim_Project (nullable, 0 if unassigned)',
     date_dim_id INT NOT NULL COMMENT 'FK to Dim_Date (format YYYYMMDD)',
     -- Degenerate Dimensions --
     review_id INT NOT NULL COMMENT 'Operational review identifier',
@@ -143,3 +143,20 @@ CREATE TABLE ETL_Execution_Log (
     execution_end TIMESTAMP NULL,
     duration_seconds DECIMAL(10, 2) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='ETL execution audit logs';
+
+-- ----------------------------------------------------------------------------
+-- 7. Bridge Table: Employee ↔ Project Assignments (Many-to-Many)
+-- ----------------------------------------------------------------------------
+CREATE TABLE Bridge_EmployeeProject (
+    bridge_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT 'Surrogate key for bridge rows',
+    employee_dim_id BIGINT NOT NULL COMMENT 'FK to Dim_Employee (current version for report)',
+    project_dim_id INT NOT NULL COMMENT 'FK to Dim_Project',
+    assignment_start_date DATE NOT NULL COMMENT 'When the employee started on the project',
+    assignment_end_date DATE NULL COMMENT 'When the employee left the project (NULL if active)',
+    is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1 = Active assignment, 0 = Historical'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Many‑to‑many bridge between employees and projects';
+
+-- Indexes for fast look‑ups
+CREATE INDEX idx_bridge_emp ON Bridge_EmployeeProject (employee_dim_id);
+CREATE INDEX idx_bridge_proj ON Bridge_EmployeeProject (project_dim_id);
+CREATE UNIQUE INDEX uq_bridge_emp_proj ON Bridge_EmployeeProject (employee_dim_id, project_dim_id, assignment_start_date);

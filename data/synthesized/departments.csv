@@ -1,0 +1,6 @@
+department_id,department_name,cost_center,budget
+1,Research & Development,CC-RND-101,12500000.0
+2,Sales,CC-SLS-202,8500000.0
+3,Human Resources,CC-HR-303,3200000.0
+4,Software Engineering,CC-SWE-404,15000000.0
+5,Finance & Operations,CC-OPS-505,6800000.0

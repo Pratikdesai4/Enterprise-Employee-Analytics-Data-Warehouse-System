@@ -1,31 +1,32 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-env/
+*.pyo
+*.pyd
+
+# Virtual env
 venv/
-ENV/
-.venv/
 
-# Streamlit
-.streamlit/secrets.toml
+# Streamlit caches
+.streamlit/
 
-# Data Files (large datasets & local databases)
-data/synthesized/*.csv
-data/synthesized/*.parquet
-!data/synthesized/.gitkeep
-*.db
-*.sqlite
-*.sqlite3
-*.log
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
 
-# Environment variables
-.env
-
-# IDE / OS
-.vscode/
-.idea/
+# OS files
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
+
+# MySQL config
+*.cnf
+
+# Docker
+Dockerfile
+docker-compose.yml
+
+# IDE files
+.vscode/
+.idea/

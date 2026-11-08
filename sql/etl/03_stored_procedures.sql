@@ -55,6 +55,89 @@ BEGIN
 END$$
 
 -- ----------------------------------------------------------------------------
+-- 7. Initial Load Stored Procedure: Populate Dim_Employee (Full Load)
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_load_dim_employee_initial$$
+CREATE PROCEDURE sp_etl_load_dim_employee_initial()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Dim_Employee (
+        employee_id, first_name, last_name, gender, age, hire_date,
+        department_id, department_name, job_role, education_field, monthly_income,
+        start_date, end_date, is_current, version
+    )
+    SELECT
+        e.employee_id, e.first_name, e.last_name, e.gender, e.age, e.hire_date,
+        e.department_id, d.department_name, e.job_role, e.education_field, e.monthly_income,
+        e.hire_date AS start_date, NULL AS end_date, 1 AS is_current, 1 AS version
+    FROM enterprise_hr_oltp.employees e
+    LEFT JOIN enterprise_hr_oltp.departments d ON e.department_id = d.department_id;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Initial_Load', 'sp_etl_load_dim_employee_initial', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
+-- 8. Initial Load Stored Procedure: Populate Dim_Project (Full Load)
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_load_dim_project_initial$$
+CREATE PROCEDURE sp_etl_load_dim_project_initial()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Dim_Project (
+        project_id, project_code, project_name, budget_tier, status, created_at
+    )
+    SELECT
+        p.project_id, p.project_code, p.project_name,
+        CASE
+            WHEN p.budget < 500000 THEN 'Small (<$500k)'
+            WHEN p.budget BETWEEN 500000 AND 1500000 THEN 'Medium ($500k-$1.5M)'
+            ELSE 'Large (> $1.5M)'
+        END AS budget_tier,
+        p.status,
+        p.created_at
+    FROM enterprise_hr_oltp.projects p;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Initial_Load', 'sp_etl_load_dim_project_initial', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
+-- 9. Bridge Sync Procedure: Populate Bridge_EmployeeProject
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_sync_employee_project_bridge$$
+CREATE PROCEDURE sp_etl_sync_employee_project_bridge()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Bridge_EmployeeProject (
+        employee_dim_id, project_dim_id, assignment_start_date, is_active
+    )
+    SELECT
+        de.employee_dim_id,
+        dp.project_dim_id,
+        DATE_SUB(CURRENT_DATE, INTERVAL FLOOR(RAND()*365) DAY) AS assignment_start_date,
+        1 AS is_active
+    FROM enterprise_hr_oltp.employee_project_assignments ep
+    JOIN enterprise_hr_dw.Dim_Employee de ON ep.employee_id = de.employee_id AND de.is_current = 1
+    JOIN enterprise_hr_dw.Dim_Project dp ON ep.project_id = dp.project_id;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Bridge_Sync', 'sp_etl_sync_employee_project_bridge', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
 -- 2. Stored Procedure: Sync Department Dimension from OLTP
 -- ----------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS sp_etl_sync_departments$$
@@ -98,6 +181,89 @@ BEGIN
 END$$
 
 -- ----------------------------------------------------------------------------
+-- 7. Initial Load Stored Procedure: Populate Dim_Employee (Full Load)
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_load_dim_employee_initial$$
+CREATE PROCEDURE sp_etl_load_dim_employee_initial()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Dim_Employee (
+        employee_id, first_name, last_name, gender, age, hire_date,
+        department_id, department_name, job_role, education_field, monthly_income,
+        start_date, end_date, is_current, version
+    )
+    SELECT
+        e.employee_id, e.first_name, e.last_name, e.gender, e.age, e.hire_date,
+        e.department_id, d.department_name, e.job_role, e.education_field, e.monthly_income,
+        e.hire_date AS start_date, NULL AS end_date, 1 AS is_current, 1 AS version
+    FROM enterprise_hr_oltp.employees e
+    LEFT JOIN enterprise_hr_oltp.departments d ON e.department_id = d.department_id;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Initial_Load', 'sp_etl_load_dim_employee_initial', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
+-- 8. Initial Load Stored Procedure: Populate Dim_Project (Full Load)
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_load_dim_project_initial$$
+CREATE PROCEDURE sp_etl_load_dim_project_initial()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Dim_Project (
+        project_id, project_code, project_name, budget_tier, status, created_at
+    )
+    SELECT
+        p.project_id, p.project_code, p.project_name,
+        CASE
+            WHEN p.budget < 500000 THEN 'Small (<$500k)'
+            WHEN p.budget BETWEEN 500000 AND 1500000 THEN 'Medium ($500k-$1.5M)'
+            ELSE 'Large (> $1.5M)'
+        END AS budget_tier,
+        p.status,
+        p.created_at
+    FROM enterprise_hr_oltp.projects p;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Initial_Load', 'sp_etl_load_dim_project_initial', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
+-- 9. Bridge Sync Procedure: Populate Bridge_EmployeeProject
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_sync_employee_project_bridge$$
+CREATE PROCEDURE sp_etl_sync_employee_project_bridge()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Bridge_EmployeeProject (
+        employee_dim_id, project_dim_id, assignment_start_date, is_active
+    )
+    SELECT
+        de.employee_dim_id,
+        dp.project_dim_id,
+        DATE_SUB(CURRENT_DATE, INTERVAL FLOOR(RAND()*365) DAY) AS assignment_start_date,
+        1 AS is_active
+    FROM enterprise_hr_oltp.employee_project_assignments ep
+    JOIN enterprise_hr_dw.Dim_Employee de ON ep.employee_id = de.employee_id AND de.is_current = 1
+    JOIN enterprise_hr_dw.Dim_Project dp ON ep.project_id = dp.project_id;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Bridge_Sync', 'sp_etl_sync_employee_project_bridge', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
 -- 3. Stored Procedure: Sync Project Dimension from OLTP
 -- ----------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS sp_etl_sync_projects$$
@@ -135,6 +301,89 @@ BEGIN
     );
 
     SELECT 'Projects synchronized successfully' AS Result;
+END$$
+
+-- ----------------------------------------------------------------------------
+-- 7. Initial Load Stored Procedure: Populate Dim_Employee (Full Load)
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_load_dim_employee_initial$$
+CREATE PROCEDURE sp_etl_load_dim_employee_initial()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Dim_Employee (
+        employee_id, first_name, last_name, gender, age, hire_date,
+        department_id, department_name, job_role, education_field, monthly_income,
+        start_date, end_date, is_current, version
+    )
+    SELECT
+        e.employee_id, e.first_name, e.last_name, e.gender, e.age, e.hire_date,
+        e.department_id, d.department_name, e.job_role, e.education_field, e.monthly_income,
+        e.hire_date AS start_date, NULL AS end_date, 1 AS is_current, 1 AS version
+    FROM enterprise_hr_oltp.employees e
+    LEFT JOIN enterprise_hr_oltp.departments d ON e.department_id = d.department_id;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Initial_Load', 'sp_etl_load_dim_employee_initial', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
+-- 8. Initial Load Stored Procedure: Populate Dim_Project (Full Load)
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_load_dim_project_initial$$
+CREATE PROCEDURE sp_etl_load_dim_project_initial()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Dim_Project (
+        project_id, project_code, project_name, budget_tier, status, created_at
+    )
+    SELECT
+        p.project_id, p.project_code, p.project_name,
+        CASE
+            WHEN p.budget < 500000 THEN 'Small (<$500k)'
+            WHEN p.budget BETWEEN 500000 AND 1500000 THEN 'Medium ($500k-$1.5M)'
+            ELSE 'Large (> $1.5M)'
+        END AS budget_tier,
+        p.status,
+        p.created_at
+    FROM enterprise_hr_oltp.projects p;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Initial_Load', 'sp_etl_load_dim_project_initial', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
+-- 9. Bridge Sync Procedure: Populate Bridge_EmployeeProject
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_sync_employee_project_bridge$$
+CREATE PROCEDURE sp_etl_sync_employee_project_bridge()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Bridge_EmployeeProject (
+        employee_dim_id, project_dim_id, assignment_start_date, is_active
+    )
+    SELECT
+        de.employee_dim_id,
+        dp.project_dim_id,
+        DATE_SUB(CURRENT_DATE, INTERVAL FLOOR(RAND()*365) DAY) AS assignment_start_date,
+        1 AS is_active
+    FROM enterprise_hr_oltp.employee_project_assignments ep
+    JOIN enterprise_hr_dw.Dim_Employee de ON ep.employee_id = de.employee_id AND de.is_current = 1
+    JOIN enterprise_hr_dw.Dim_Project dp ON ep.project_id = dp.project_id;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Bridge_Sync', 'sp_etl_sync_employee_project_bridge', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
 END$$
 
 -- ----------------------------------------------------------------------------
@@ -242,6 +491,89 @@ BEGIN
 END$$
 
 -- ----------------------------------------------------------------------------
+-- 7. Initial Load Stored Procedure: Populate Dim_Employee (Full Load)
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_load_dim_employee_initial$$
+CREATE PROCEDURE sp_etl_load_dim_employee_initial()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Dim_Employee (
+        employee_id, first_name, last_name, gender, age, hire_date,
+        department_id, department_name, job_role, education_field, monthly_income,
+        start_date, end_date, is_current, version
+    )
+    SELECT
+        e.employee_id, e.first_name, e.last_name, e.gender, e.age, e.hire_date,
+        e.department_id, d.department_name, e.job_role, e.education_field, e.monthly_income,
+        e.hire_date AS start_date, NULL AS end_date, 1 AS is_current, 1 AS version
+    FROM enterprise_hr_oltp.employees e
+    LEFT JOIN enterprise_hr_oltp.departments d ON e.department_id = d.department_id;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Initial_Load', 'sp_etl_load_dim_employee_initial', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
+-- 8. Initial Load Stored Procedure: Populate Dim_Project (Full Load)
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_load_dim_project_initial$$
+CREATE PROCEDURE sp_etl_load_dim_project_initial()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Dim_Project (
+        project_id, project_code, project_name, budget_tier, status, created_at
+    )
+    SELECT
+        p.project_id, p.project_code, p.project_name,
+        CASE
+            WHEN p.budget < 500000 THEN 'Small (<$500k)'
+            WHEN p.budget BETWEEN 500000 AND 1500000 THEN 'Medium ($500k-$1.5M)'
+            ELSE 'Large (> $1.5M)'
+        END AS budget_tier,
+        p.status,
+        p.created_at
+    FROM enterprise_hr_oltp.projects p;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Initial_Load', 'sp_etl_load_dim_project_initial', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
+-- 9. Bridge Sync Procedure: Populate Bridge_EmployeeProject
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_sync_employee_project_bridge$$
+CREATE PROCEDURE sp_etl_sync_employee_project_bridge()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Bridge_EmployeeProject (
+        employee_dim_id, project_dim_id, assignment_start_date, is_active
+    )
+    SELECT
+        de.employee_dim_id,
+        dp.project_dim_id,
+        DATE_SUB(CURRENT_DATE, INTERVAL FLOOR(RAND()*365) DAY) AS assignment_start_date,
+        1 AS is_active
+    FROM enterprise_hr_oltp.employee_project_assignments ep
+    JOIN enterprise_hr_dw.Dim_Employee de ON ep.employee_id = de.employee_id AND de.is_current = 1
+    JOIN enterprise_hr_dw.Dim_Project dp ON ep.project_id = dp.project_id;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Bridge_Sync', 'sp_etl_sync_employee_project_bridge', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
 -- 5. Stored Procedure: Load Fact_PerformanceReviews with Point-in-Time Key Resolution
 -- ----------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS sp_etl_load_fact_performance$$
@@ -316,6 +648,89 @@ BEGIN
 END$$
 
 -- ----------------------------------------------------------------------------
+-- 7. Initial Load Stored Procedure: Populate Dim_Employee (Full Load)
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_load_dim_employee_initial$$
+CREATE PROCEDURE sp_etl_load_dim_employee_initial()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Dim_Employee (
+        employee_id, first_name, last_name, gender, age, hire_date,
+        department_id, department_name, job_role, education_field, monthly_income,
+        start_date, end_date, is_current, version
+    )
+    SELECT
+        e.employee_id, e.first_name, e.last_name, e.gender, e.age, e.hire_date,
+        e.department_id, d.department_name, e.job_role, e.education_field, e.monthly_income,
+        e.hire_date AS start_date, NULL AS end_date, 1 AS is_current, 1 AS version
+    FROM enterprise_hr_oltp.employees e
+    LEFT JOIN enterprise_hr_oltp.departments d ON e.department_id = d.department_id;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Initial_Load', 'sp_etl_load_dim_employee_initial', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
+-- 8. Initial Load Stored Procedure: Populate Dim_Project (Full Load)
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_load_dim_project_initial$$
+CREATE PROCEDURE sp_etl_load_dim_project_initial()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Dim_Project (
+        project_id, project_code, project_name, budget_tier, status, created_at
+    )
+    SELECT
+        p.project_id, p.project_code, p.project_name,
+        CASE
+            WHEN p.budget < 500000 THEN 'Small (<$500k)'
+            WHEN p.budget BETWEEN 500000 AND 1500000 THEN 'Medium ($500k-$1.5M)'
+            ELSE 'Large (> $1.5M)'
+        END AS budget_tier,
+        p.status,
+        p.created_at
+    FROM enterprise_hr_oltp.projects p;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Initial_Load', 'sp_etl_load_dim_project_initial', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
+-- 9. Bridge Sync Procedure: Populate Bridge_EmployeeProject
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_sync_employee_project_bridge$$
+CREATE PROCEDURE sp_etl_sync_employee_project_bridge()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Bridge_EmployeeProject (
+        employee_dim_id, project_dim_id, assignment_start_date, is_active
+    )
+    SELECT
+        de.employee_dim_id,
+        dp.project_dim_id,
+        DATE_SUB(CURRENT_DATE, INTERVAL FLOOR(RAND()*365) DAY) AS assignment_start_date,
+        1 AS is_active
+    FROM enterprise_hr_oltp.employee_project_assignments ep
+    JOIN enterprise_hr_dw.Dim_Employee de ON ep.employee_id = de.employee_id AND de.is_current = 1
+    JOIN enterprise_hr_dw.Dim_Project dp ON ep.project_id = dp.project_id;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Bridge_Sync', 'sp_etl_sync_employee_project_bridge', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
 -- 6. Master Orchestrator Stored Procedure
 -- ----------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS sp_run_full_etl$$
@@ -342,7 +757,91 @@ BEGIN
     -- 4. Load Fact Performance Reviews
     CALL sp_etl_load_fact_performance();
 
+    CALL sp_etl_sync_employee_project_bridge();
     SELECT 'Full ETL Pipeline Executed Successfully!' AS MasterStatus;
+END$$
+
+-- ----------------------------------------------------------------------------
+-- 7. Initial Load Stored Procedure: Populate Dim_Employee (Full Load)
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_load_dim_employee_initial$$
+CREATE PROCEDURE sp_etl_load_dim_employee_initial()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Dim_Employee (
+        employee_id, first_name, last_name, gender, age, hire_date,
+        department_id, department_name, job_role, education_field, monthly_income,
+        start_date, end_date, is_current, version
+    )
+    SELECT
+        e.employee_id, e.first_name, e.last_name, e.gender, e.age, e.hire_date,
+        e.department_id, d.department_name, e.job_role, e.education_field, e.monthly_income,
+        e.hire_date AS start_date, NULL AS end_date, 1 AS is_current, 1 AS version
+    FROM enterprise_hr_oltp.employees e
+    LEFT JOIN enterprise_hr_oltp.departments d ON e.department_id = d.department_id;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Initial_Load', 'sp_etl_load_dim_employee_initial', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
+-- 8. Initial Load Stored Procedure: Populate Dim_Project (Full Load)
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_load_dim_project_initial$$
+CREATE PROCEDURE sp_etl_load_dim_project_initial()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Dim_Project (
+        project_id, project_code, project_name, budget_tier, status, created_at
+    )
+    SELECT
+        p.project_id, p.project_code, p.project_name,
+        CASE
+            WHEN p.budget < 500000 THEN 'Small (<$500k)'
+            WHEN p.budget BETWEEN 500000 AND 1500000 THEN 'Medium ($500k-$1.5M)'
+            ELSE 'Large (> $1.5M)'
+        END AS budget_tier,
+        p.status,
+        p.created_at
+    FROM enterprise_hr_oltp.projects p;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Initial_Load', 'sp_etl_load_dim_project_initial', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
+END$$
+
+-- ----------------------------------------------------------------------------
+-- 9. Bridge Sync Procedure: Populate Bridge_EmployeeProject
+-- ----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_etl_sync_employee_project_bridge$$
+CREATE PROCEDURE sp_etl_sync_employee_project_bridge()
+BEGIN
+    DECLARE v_start_time TIMESTAMP;
+    DECLARE v_inserted INT DEFAULT 0;
+    SET v_start_time = CURRENT_TIMESTAMP;
+
+    INSERT INTO enterprise_hr_dw.Bridge_EmployeeProject (
+        employee_dim_id, project_dim_id, assignment_start_date, is_active
+    )
+    SELECT
+        de.employee_dim_id,
+        dp.project_dim_id,
+        DATE_SUB(CURRENT_DATE, INTERVAL FLOOR(RAND()*365) DAY) AS assignment_start_date,
+        1 AS is_active
+    FROM enterprise_hr_oltp.employee_project_assignments ep
+    JOIN enterprise_hr_dw.Dim_Employee de ON ep.employee_id = de.employee_id AND de.is_current = 1
+    JOIN enterprise_hr_dw.Dim_Project dp ON ep.project_id = dp.project_id;
+
+    SET v_inserted = ROW_COUNT();
+    INSERT INTO ETL_Execution_Log (pipeline_name, step_name, records_processed, records_inserted, status, execution_start, execution_end, duration_seconds)
+    VALUES ('Bridge_Sync', 'sp_etl_sync_employee_project_bridge', v_inserted, v_inserted, 'SUCCESS', v_start_time, CURRENT_TIMESTAMP, TIMESTAMPDIFF(SECOND, v_start_time, CURRENT_TIMESTAMP));
 END$$
 
 DELIMITER ;
