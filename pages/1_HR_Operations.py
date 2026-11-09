@@ -17,40 +17,10 @@ from src.entities.project import Project
 from src.entities.review import PerformanceReview
 from src.managers.employee_manager import EmployeeManager
 from src.managers.project_manager import ProjectManager
+from src.ui import apply_ui_theme
 
 st.set_page_config(page_title="HR Operations Console", layout="wide")
-
-# Professional Enterprise Styling
-st.markdown("""
-<style>
-    .op-header {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: #0F172A;
-        margin-bottom: 0.25rem;
-    }
-    .op-sub {
-        font-size: 0.92rem;
-        color: #475569;
-        margin-bottom: 1.5rem;
-    }
-    .section-title {
-        font-size: 1.15rem;
-        font-weight: 600;
-        color: #0F172A;
-        margin-bottom: 0.5rem;
-    }
-    .callout-box {
-        background-color: #F8FAFC;
-        border-left: 4px solid #1E40AF;
-        padding: 0.75rem 1rem;
-        margin-bottom: 1rem;
-        border-radius: 0 4px 4px 0;
-        font-size: 0.88rem;
-        color: #334155;
-    }
-</style>
-""", unsafe_allow_html=True)
+apply_ui_theme()
 
 st.markdown('<div class="op-header">HR Operations & Transactional Console</div>', unsafe_allow_html=True)
 st.markdown('<div class="op-sub">Operational record intake, initiative staffing, and automated SCD Type 2 warehouse updates.</div>', unsafe_allow_html=True)

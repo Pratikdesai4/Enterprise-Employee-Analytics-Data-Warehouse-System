@@ -15,59 +15,10 @@ import plotly.graph_objects as go
 import altair as alt
 from src.database.db_manager import get_db
 from src.managers.analytics_manager import AnalyticsManager
+from src.ui import apply_ui_theme
 
 st.set_page_config(page_title="Executive Analytics Dashboard", layout="wide")
-
-# Professional Enterprise Styling
-st.markdown("""
-<style>
-    .dash-header {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: #0F172A;
-        margin-bottom: 0.25rem;
-    }
-    .dash-sub {
-        font-size: 0.92rem;
-        color: #475569;
-        margin-bottom: 1.5rem;
-    }
-    .exec-card {
-        background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 6px;
-        padding: 1rem 0.85rem;
-        text-align: left;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-        border-top: 3px solid #1E40AF;
-    }
-    .exec-val {
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: #0F172A;
-        font-feature-settings: "tnum";
-    }
-    .exec-lbl {
-        font-size: 0.72rem;
-        font-weight: 600;
-        color: #64748B;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        margin-top: 0.2rem;
-    }
-    .section-title {
-        font-size: 1.15rem;
-        font-weight: 600;
-        color: #0F172A;
-        margin-bottom: 0.25rem;
-    }
-    .section-desc {
-        font-size: 0.85rem;
-        color: #64748B;
-        margin-bottom: 1rem;
-    }
-</style>
-""", unsafe_allow_html=True)
+apply_ui_theme()
 
 st.markdown('<div class="dash-header">Executive Analytics & Workforce Intelligence</div>', unsafe_allow_html=True)
 st.markdown('<div class="dash-sub">Multi-dimensional analytics driven directly by the OLAP Star Schema and SQL Window Functions.</div>', unsafe_allow_html=True)

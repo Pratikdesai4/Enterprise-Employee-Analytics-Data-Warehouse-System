@@ -11,6 +11,7 @@ import streamlit as st
 import pandas as pd
 from src.database.db_manager import get_db
 from src.managers.analytics_manager import AnalyticsManager
+from src.ui import apply_ui_theme
 
 # Streamlit Page Configuration
 st.set_page_config(
@@ -19,99 +20,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Professional Enterprise Theme Styling
-st.markdown("""
-<style>
-    /* Main Layout & Headers */
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-    }
-    .enterprise-header {
-        font-size: 1.85rem;
-        font-weight: 700;
-        color: #0F172A;
-        letter-spacing: -0.02em;
-        margin-bottom: 0.25rem;
-    }
-    .enterprise-sub {
-        font-size: 0.95rem;
-        color: #475569;
-        margin-bottom: 1.75rem;
-        line-height: 1.5;
-    }
-    
-    /* Metrics & KPI Cards */
-    .kpi-container {
-        background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 6px;
-        padding: 1.25rem 1rem;
-        text-align: left;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-        border-top: 3px solid #1E40AF;
-    }
-    .kpi-num {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: #0F172A;
-        font-feature-settings: "tnum";
-    }
-    .kpi-title {
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: #64748B;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-top: 0.25rem;
-    }
-
-    /* Portal Navigation Cards */
-    .portal-card {
-        background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 8px;
-        padding: 1.5rem;
-        height: 100%;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    }
-    .portal-card h4 {
-        margin-top: 0;
-        font-size: 1.15rem;
-        font-weight: 600;
-        color: #0F172A;
-    }
-    .portal-card p {
-        font-size: 0.88rem;
-        color: #475569;
-        line-height: 1.5;
-    }
-    .portal-card ul {
-        margin-bottom: 1rem;
-        padding-left: 1.25rem;
-        font-size: 0.85rem;
-        color: #334155;
-    }
-    .status-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.25rem 0.65rem;
-        border-radius: 9999px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        background-color: #DCFCE7;
-        color: #166534;
-        border: 1px solid #BBF7D0;
-    }
-    .status-dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background-color: #16A34A;
-        margin-right: 6px;
-    }
-</style>
-""", unsafe_allow_html=True)
+apply_ui_theme()
 
 
 def main():
