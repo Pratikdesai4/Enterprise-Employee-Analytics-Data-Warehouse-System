@@ -2,7 +2,7 @@
 Enterprise Employee Analytics - Executive Analytics Dashboard (OLAP)
 ===================================================================
 Business intelligence dashboards connected directly to the Dimensional Star Schema
-powered by SQL Window Functions, Plotly visualizations, and SCD2 audits.
+powered by SQL Window Functions, Plotly & Altair visualizations, and SCD2 audits.
 
 Author: Enterprise Data Architecture Team
 Design: Professional Enterprise UI
@@ -12,6 +12,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import altair as alt
 from src.database.db_manager import get_db
 from src.managers.analytics_manager import AnalyticsManager
 
@@ -211,7 +212,7 @@ if not df_yoy.empty:
 st.divider()
 
 # =============================================================================
-# SECTION 3: ATTRITION RISK HEATMAP & BOTTLENECK ANALYSIS
+# SECTION 3: ATTRITION RISK HEATMAP & FLIGHT RISK DIAGNOSTICS
 # =============================================================================
 st.markdown('<div class="section-title">Attrition Diagnostics & Flight Risk Modeling</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-desc">Identification of flight-risk roles based on work-life balance, satisfaction indices, and tenure metrics.</div>', unsafe_allow_html=True)
@@ -290,7 +291,70 @@ if not df_dept_dist.empty:
 st.divider()
 
 # =============================================================================
-# SECTION 5: SCD TYPE 2 ENTERPRISE MOBILITY AUDIT TRAIL
+# SECTION 5: PROJECT ALLOCATION & BOTTLENECK ANALYSIS (ALTAIR VISUAL ENGINE)
+# =============================================================================
+st.markdown('<div class="section-title">Project Allocation & Bottleneck Workload Diagnostics</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-desc">Interactive resource allocation analytics generated via Altair — identifies departmental workload pressure and staffing bottlenecks.</div>', unsafe_allow_html=True)
+
+df_proj_alloc = analytics_mgr.get_project_allocation_analysis()
+
+if not df_proj_alloc.empty:
+    b_col1, b_col2 = st.columns([3, 2])
+
+    with b_col1:
+        # Altair grouped bar chart comparing Active Projects vs Full-Time Equivalent (FTE) Allocated
+        melted = df_proj_alloc.melt(
+            id_vars=["department_name", "bottleneck_status"],
+            value_vars=["active_projects", "total_fte_allocated"],
+            var_name="Metric",
+            value_name="Value"
+        )
+        metric_labels = {
+            "active_projects": "Active Initiatives",
+            "total_fte_allocated": "Total FTE Allocated"
+        }
+        melted["MetricLabel"] = melted["Metric"].map(metric_labels)
+
+        alt_chart = alt.Chart(melted).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
+            x=alt.X("department_name:N", title="Department", axis=alt.Axis(labelAngle=-15)),
+            y=alt.Y("Value:Q", title="Capacity Volume"),
+            color=alt.Color(
+                "MetricLabel:N",
+                scale=alt.Scale(domain=["Active Initiatives", "Total FTE Allocated"], range=["#3B82F6", "#1E40AF"]),
+                legend=alt.Legend(title="Allocation Dimension", orient="top")
+            ),
+            xOffset="MetricLabel:N",
+            tooltip=[
+                alt.Tooltip("department_name:N", title="Department"),
+                alt.Tooltip("MetricLabel:N", title="Metric"),
+                alt.Tooltip("Value:Q", title="Count/FTE", format=",.1f"),
+                alt.Tooltip("bottleneck_status:N", title="Workload Risk")
+            ]
+        ).properties(
+            title="Department Staffing Capacity vs Active Initiatives (Altair Engine)",
+            height=370
+        ).configure_title(fontSize=13, anchor="start", color="#0F172A")
+
+        st.altair_chart(alt_chart, use_container_width=True)
+
+    with b_col2:
+        st.markdown("##### Department Workload & Bottleneck Registry")
+        st.dataframe(
+            df_proj_alloc[[
+                "department_name", "active_projects", "assigned_staff",
+                "avg_allocation_pct", "bottleneck_status"
+            ]],
+            use_container_width=True,
+            hide_index=True,
+            height=350
+        )
+else:
+    st.info("No project allocation records available for analysis.")
+
+st.divider()
+
+# =============================================================================
+# SECTION 6: SCD TYPE 2 ENTERPRISE MOBILITY AUDIT TRAIL
 # =============================================================================
 st.markdown('<div class="section-title">SCD Type 2 Career Mobility & Historical Transition Audit</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-desc">Audit of historical dimension versions tracking promotions, departmental transfers, and salary trajectories preserved in Dim_Employee.</div>', unsafe_allow_html=True)

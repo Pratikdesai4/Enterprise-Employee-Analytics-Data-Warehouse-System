@@ -12,6 +12,10 @@ from typing import Optional, List, Dict, Any, Tuple
 from src.managers.base_manager import BaseManager
 from src.entities.project import Project
 from src.entities.review import PerformanceReview
+from src.exceptions import EntityNotFoundError, ValidationError
+from src.logger import get_logger
+
+logger = get_logger("project_manager")
 
 
 class ProjectManager(BaseManager):
@@ -87,6 +91,7 @@ class ProjectManager(BaseManager):
             new_id, project.project_code, project.project_name, project.budget_tier, project.status
         ))
 
+        logger.info("Created initiative %s (ID: %s)", project.project_code, new_id)
         return new_id
 
     def assign_employee(self, employee_id: str, project_id: int, role: str, allocation_percentage: int = 100) -> bool:
@@ -97,6 +102,7 @@ class ProjectManager(BaseManager):
             VALUES (%s, %s, %s, %s, %s)
         """
         self._execute_update(sql, (employee_id, project_id, role, allocation_percentage, assigned_date))
+        logger.info("Assigned %s to project %s (%d%% commitment)", employee_id, project_id, allocation_percentage)
         return True
 
     def get_project_team(self, project_id: int) -> List[Dict[str, Any]]:
@@ -120,7 +126,7 @@ class ProjectManager(BaseManager):
         """
         emp_dim_rows = self._execute_query(sql_emp_dim, (review.employee_id,))
         if not emp_dim_rows:
-            raise ValueError(f"Active dimension not found for employee {review.employee_id}")
+            raise EntityNotFoundError(f"Active dimension not found for employee {review.employee_id}")
         employee_dim_id = emp_dim_rows[0]["employee_dim_id"]
 
         # 2. Look up department surrogate key
@@ -151,4 +157,5 @@ class ProjectManager(BaseManager):
             review.attrition_risk_score, review.tenure_at_review, review.promotion_given
         ))
 
+        logger.info("Submitted appraisal fact for %s (rating: %s)", review.employee_id, review.performance_rating)
         return True

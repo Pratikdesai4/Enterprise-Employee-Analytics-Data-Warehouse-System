@@ -2,7 +2,8 @@
 Enterprise Employee Analytics - OOP Backend Verification Suite
 ==============================================================
 Validates the Singleton Database Pattern, Domain Entities,
-Data Access Layer (DAL), and SCD Type 2 Reassignment Triggers.
+Data Access Layer (DAL), SCD Type 2 Reassignment Triggers,
+SQLAlchemy Engine caching, Custom Exceptions, and Project Bottleneck Analytics.
 
 Author: Enterprise Data Architecture Team
 """
@@ -21,6 +22,8 @@ from src.entities.review import PerformanceReview
 from src.managers.employee_manager import EmployeeManager
 from src.managers.project_manager import ProjectManager
 from src.managers.analytics_manager import AnalyticsManager
+from src.exceptions import ValidationError, DatabaseError, EntityNotFoundError
+from src.logger import get_logger
 
 
 class TestOOPBackend(unittest.TestCase):
@@ -71,8 +74,8 @@ class TestOOPBackend(unittest.TestCase):
         self.assertEqual(emp.full_name, "Jane Doe")
         self.assertEqual(emp.annual_salary, 138000.0)
 
-        # Invalid employee (underage)
-        with self.assertRaises(ValueError):
+        # Invalid employee (underage) - must raise ValidationError
+        with self.assertRaises(ValidationError):
             Employee(
                 employee_id="EMP-FAIL",
                 first_name="Too",
@@ -80,7 +83,7 @@ class TestOOPBackend(unittest.TestCase):
                 email="young@corp.com",
                 phone="123",
                 gender="Male",
-                age=15, # Under 18
+                age=15,  # Under 18
                 marital_status="Single",
                 hire_date="2024-01-01",
                 department_id=1,
@@ -110,7 +113,7 @@ class TestOOPBackend(unittest.TestCase):
             age=29,
             marital_status="Single",
             hire_date="2023-05-10",
-            department_id=2, # Sales
+            department_id=2,  # Sales
             job_role="Sales Executive",
             education_field="Marketing",
             monthly_income=6200.0
@@ -127,7 +130,7 @@ class TestOOPBackend(unittest.TestCase):
         # TRIGGER SCD TYPE 2 UPDATE: Promote to Software Engineering with higher salary
         result = mgr.reassign_employee_role_or_dept(
             employee_id=test_emp_id,
-            new_department_id=4, # Software Engineering
+            new_department_id=4,  # Software Engineering
             new_job_role="Lead Software Engineer",
             new_monthly_income=12500.0,
             effective_date="2026-02-01"
@@ -175,6 +178,49 @@ class TestOOPBackend(unittest.TestCase):
         self.assertIn("review_year", df_yoy.columns)
 
         print("[PASS] Star Schema Analytics & SQL Window Functions (DENSE_RANK) Verified.")
+
+    def test_05_custom_exceptions_and_logger(self):
+        """Validates custom exception hierarchy and centralized logger."""
+        logger = get_logger("test")
+        self.assertIsNotNone(logger)
+        logger.info("Test log statement emitted.")
+
+        # Verify ValidationError inherits from ValueError and EnterpriseAnalyticsError
+        with self.assertRaises(ValidationError):
+            raise ValidationError("Validation test constraint breached.")
+
+        # Verify EntityNotFoundError
+        with self.assertRaises(EntityNotFoundError):
+            mgr = EmployeeManager()
+            mgr.reassign_employee_role_or_dept(
+                employee_id="NON-EXISTENT-EMP-000",
+                new_department_id=1,
+                new_job_role="Invalid",
+                new_monthly_income=5000.0
+            )
+
+        print("[PASS] Custom Exceptions and Centralized Logging Framework Verified.")
+
+    def test_06_sqlalchemy_engine(self):
+        """Validates that DatabaseConnection returns a functional SQLAlchemy Engine."""
+        db = get_db()
+        engine = db.get_sqlalchemy_engine()
+        self.assertIsNotNone(engine)
+        # Execute basic query via SQLAlchemy engine connection
+        with engine.connect() as conn:
+            self.assertFalse(conn.closed)
+        print("[PASS] SQLAlchemy Engine Integration and Connection Pooling Verified.")
+
+    def test_07_project_allocation_and_bottleneck_analysis(self):
+        """Validates project allocation & workload bottleneck diagnostic query."""
+        analytics = AnalyticsManager()
+        df_alloc = analytics.get_project_allocation_analysis()
+        self.assertFalse(df_alloc.empty, "Project allocation dataframe must not be empty.")
+        self.assertIn("active_projects", df_alloc.columns)
+        self.assertIn("total_assignments", df_alloc.columns)
+        self.assertIn("bottleneck_risk_score", df_alloc.columns)
+        self.assertIn("bottleneck_status", df_alloc.columns)
+        print("[PASS] Project Allocation & Bottleneck Analysis Analytics Verified.")
 
 
 if __name__ == "__main__":

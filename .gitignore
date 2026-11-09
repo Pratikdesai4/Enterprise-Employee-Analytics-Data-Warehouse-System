@@ -7,8 +7,8 @@ __pycache__/
 # Virtual env
 venv/
 
-# Streamlit caches
-.streamlit/
+# Streamlit secrets (track config.toml and secrets.toml.example, ignore private credentials)
+.streamlit/secrets.toml
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
@@ -22,10 +22,6 @@ Thumbs.db
 
 # MySQL config
 *.cnf
-
-# Docker
-Dockerfile
-docker-compose.yml
 
 # IDE files
 .vscode/

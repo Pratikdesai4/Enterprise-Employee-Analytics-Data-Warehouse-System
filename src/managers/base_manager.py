@@ -1,15 +1,15 @@
 """
 Enterprise Employee Analytics - Base Manager
 ============================================
-Provides shared database access, transaction isolation, and error logging.
+Provides shared database access, transaction isolation, and structured logging.
 """
 
-import logging
 from typing import Optional, Dict, Any, List, Tuple
 from src.database.db_manager import DatabaseConnection, get_db
+from src.logger import get_logger
+from src.exceptions import DatabaseError
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("EnterpriseManager")
+logger = get_logger("base_manager")
 
 
 class BaseManager:
@@ -24,7 +24,9 @@ class BaseManager:
         try:
             return self.db.execute_query(sql, params, database=database)
         except Exception as e:
-            logger.error(f"Query execution failed: {e}\nSQL: {sql}\nParams: {params}")
+            logger.error("Query execution failed: %s | SQL: %s | Params: %s", e, sql, params)
+            if not isinstance(e, DatabaseError):
+                raise DatabaseError(f"Query execution failed: {e}") from e
             raise
 
     def _execute_update(self, sql: str, params: Optional[Tuple] = None, database: Optional[str] = None) -> int:
@@ -32,5 +34,7 @@ class BaseManager:
         try:
             return self.db.execute_update(sql, params, database=database)
         except Exception as e:
-            logger.error(f"Update execution failed: {e}\nSQL: {sql}\nParams: {params}")
+            logger.error("Update execution failed: %s | SQL: %s | Params: %s", e, sql, params)
+            if not isinstance(e, DatabaseError):
+                raise DatabaseError(f"Update execution failed: {e}") from e
             raise

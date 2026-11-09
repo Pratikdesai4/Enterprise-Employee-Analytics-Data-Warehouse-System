@@ -9,6 +9,8 @@ from typing import Optional, Dict, Any
 import datetime
 import re
 
+from src.exceptions import ValidationError
+
 
 @dataclass
 class Employee:
@@ -47,13 +49,13 @@ class Employee:
     def validate(self) -> bool:
         """Enforces domain validations."""
         if not self.employee_id or not self.employee_id.strip():
-            raise ValueError("Employee ID cannot be empty.")
+            raise ValidationError("Employee ID cannot be empty.")
         if self.age < 18 or self.age > 75:
-            raise ValueError(f"Invalid employee age: {self.age}. Must be between 18 and 75.")
+            raise ValidationError(f"Invalid employee age: {self.age}. Must be between 18 and 75.")
         if self.monthly_income <= 0:
-            raise ValueError("Monthly income must be a positive number.")
+            raise ValidationError("Monthly income must be a positive number.")
         if not re.match(r"^[^@]+@[^@]+\.[^@]+$", self.email):
-            raise ValueError(f"Invalid email address format: {self.email}")
+            raise ValidationError(f"Invalid email address format: {self.email}")
         return True
 
     def to_dict(self) -> Dict[str, Any]:

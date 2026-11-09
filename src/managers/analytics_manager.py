@@ -10,6 +10,9 @@ Author: Enterprise Data Architecture Team
 import pandas as pd
 from typing import Optional, Dict, Any, List
 from src.managers.base_manager import BaseManager
+from src.logger import get_logger
+
+logger = get_logger("analytics_manager")
 
 
 class AnalyticsManager(BaseManager):
@@ -23,12 +26,16 @@ class AnalyticsManager(BaseManager):
             self.tbl_dept_dw = "enterprise_hr_dw.Dim_Department"
             self.tbl_proj_dw = "enterprise_hr_dw.Dim_Project"
             self.tbl_date_dw = "enterprise_hr_dw.Dim_Date"
+            self.tbl_proj_oltp = "enterprise_hr_oltp.projects"
+            self.tbl_assign = "enterprise_hr_oltp.employee_project_assignments"
         else:
             self.tbl_fact = "Fact_PerformanceReviews"
             self.tbl_emp_dw = "Dim_Employee"
             self.tbl_dept_dw = "Dim_Department"
             self.tbl_proj_dw = "Dim_Project"
             self.tbl_date_dw = "Dim_Date"
+            self.tbl_proj_oltp = "projects_oltp"
+            self.tbl_assign = "employee_project_assignments"
 
     def get_executive_kpis(self) -> Dict[str, Any]:
         """Calculates headline operational and warehouse metrics."""
@@ -173,6 +180,38 @@ class AnalyticsManager(BaseManager):
             ORDER BY headcount DESC
         """
         return self.db.fetch_dataframe(sql)
+
+    def get_project_allocation_analysis(self) -> pd.DataFrame:
+        """
+        Analyzes initiative allocations and workload bottlenecks across departments.
+        Calculates active initiatives, assigned staff count, mean commitment %,
+        and computes a Bottleneck Risk Score to flag under- or over-resourced teams.
+        """
+        sql = f"""
+            SELECT 
+                d.department_name,
+                COUNT(DISTINCT p.project_id) as active_projects,
+                COUNT(a.assignment_id) as total_assignments,
+                COALESCE(ROUND(AVG(a.allocation_percentage), 1), 0.0) as avg_allocation_pct,
+                COUNT(DISTINCT a.employee_id) as assigned_staff,
+                COALESCE(ROUND(SUM(a.allocation_percentage) / 100.0, 1), 0.0) as total_fte_allocated
+            FROM {self.tbl_dept_dw} d
+            LEFT JOIN {self.tbl_proj_oltp} p ON d.department_id = p.department_id
+            LEFT JOIN {self.tbl_assign} a ON p.project_id = a.project_id
+            GROUP BY d.department_name
+            ORDER BY total_assignments DESC
+        """
+        df = self.db.fetch_dataframe(sql)
+        if not df.empty:
+            # Bottleneck Index: Ratio of FTE demand to active projects normalized by workload intensity
+            df["bottleneck_risk_score"] = (
+                (df["avg_allocation_pct"] * 0.6) +
+                ((df["total_assignments"] / df["active_projects"].replace(0, 1)) * 0.4)
+            ).round(1)
+            df["bottleneck_status"] = df["avg_allocation_pct"].apply(
+                lambda x: "High Bottleneck Risk" if x >= 70 else ("Moderate Load" if x >= 50 else "Balanced")
+            )
+        return df
 
     def get_scd2_progression_audit(self, limit: int = 50) -> pd.DataFrame:
         """Queries multi-version career histories and promotion salary deltas."""

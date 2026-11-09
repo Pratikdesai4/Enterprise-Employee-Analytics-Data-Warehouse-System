@@ -11,6 +11,10 @@ import datetime
 from typing import Optional, List, Dict, Any, Tuple
 from src.managers.base_manager import BaseManager
 from src.entities.employee import Employee
+from src.exceptions import EntityNotFoundError, ValidationError
+from src.logger import get_logger
+
+logger = get_logger("employee_manager")
 
 
 class EmployeeManager(BaseManager):
@@ -60,105 +64,130 @@ class EmployeeManager(BaseManager):
             """
             rows = self._execute_query(sql_name, (f"%{term}%", term, term))
 
-        # 3. Fallback to Dim_Employee in Data Warehouse (Current Version)
+        # 3. Fallback: Search in Dim_Employee (Active Version)
         if not rows:
             sql_dw = f"""
                 SELECT 
-                    employee_id, first_name, last_name,
-                    (LOWER(first_name) || '.' || LOWER(last_name) || '@enterprise.corp') as email,
-                    '+1-555-010-0000' as phone, gender, age,
-                    'Single' as marital_status, hire_date, department_id, department_name,
-                    job_role, education_field, monthly_income, 'No' as overtime, 0 as years_at_company,
-                    'No' as attrition, 'Active' as status
+                    employee_id, first_name, last_name, 
+                    first_name || '.' || last_name || '@enterprise.corp' as email,
+                    '+1-555-0100' as phone,
+                    gender, age, 'Single' as marital_status,
+                    hire_date, department_id, department_name, job_role,
+                    education_field, monthly_income, 'No' as overtime,
+                    0 as years_at_company, 'No' as attrition, 'Active' as status
                 FROM {self.tbl_emp_dw}
-                WHERE (UPPER(TRIM(employee_id)) = UPPER(%s) OR UPPER(first_name || ' ' || last_name) LIKE UPPER(%s))
+                WHERE (UPPER(TRIM(employee_id)) = UPPER(%s)
+                   OR UPPER(first_name || ' ' || last_name) LIKE UPPER(%s))
                   AND is_current = 1
                 LIMIT 1
             """
             rows = self._execute_query(sql_dw, (term, f"%{term}%"))
 
-        if not rows:
-            return None
-        return Employee.from_dict(rows[0])
+        if rows:
+            return Employee.from_dict(rows[0])
+        return None
 
     def list_employees(self, limit: int = 50, offset: int = 0, search: Optional[str] = None, department_id: Optional[int] = None) -> List[Employee]:
-        """Queries active employees with search, department filters, and pagination."""
+        """Fetches paginated list of operational employees with optional filtering."""
         clauses = []
         params = []
 
-        if search:
-            search_param = f"%{search}%"
-            clauses.append("(e.employee_id LIKE %s OR e.first_name LIKE %s OR e.last_name LIKE %s OR e.email LIKE %s)")
-            params.extend([search_param, search_param, search_param, search_param])
+        if search and search.strip():
+            s = f"%{search.strip().upper()}%"
+            clauses.append("(UPPER(e.employee_id) LIKE %s OR UPPER(e.first_name) LIKE %s OR UPPER(e.last_name) LIKE %s)")
+            params.extend([s, s, s])
 
         if department_id:
             clauses.append("e.department_id = %s")
             params.append(department_id)
 
-        where_str = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        where_clause = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         sql = f"""
             SELECT e.*, d.department_name
             FROM {self.tbl_emp_oltp} e
             LEFT JOIN {self.tbl_dept_oltp} d ON e.department_id = d.department_id
-            {where_str}
+            {where_clause}
             ORDER BY e.employee_id ASC
             LIMIT {limit} OFFSET {offset}
         """
         rows = self._execute_query(sql, tuple(params))
+
+        # Fallback to Dim_Employee if OLTP table is empty
+        if not rows:
+            dw_where = "WHERE is_current = 1"
+            if department_id:
+                dw_where += f" AND department_id = {int(department_id)}"
+            if search and search.strip():
+                s = f"%{search.strip().upper()}%"
+                dw_where += f" AND (UPPER(employee_id) LIKE '{s}' OR UPPER(first_name) LIKE '{s}' OR UPPER(last_name) LIKE '{s}')"
+
+            sql_dw = f"""
+                SELECT 
+                    employee_id, first_name, last_name, 
+                    first_name || '.' || last_name || '@enterprise.corp' as email,
+                    '+1-555-0100' as phone,
+                    gender, age, 'Single' as marital_status,
+                    hire_date, department_id, department_name, job_role,
+                    education_field, monthly_income, 'No' as overtime,
+                    0 as years_at_company, 'No' as attrition, 'Active' as status
+                FROM {self.tbl_emp_dw}
+                {dw_where}
+                ORDER BY employee_id ASC
+                LIMIT {limit} OFFSET {offset}
+            """
+            rows = self._execute_query(sql_dw)
+
         return [Employee.from_dict(r) for r in rows]
 
-    def count_employees(self, search: Optional[str] = None, department_id: Optional[int] = None) -> int:
-        """Counts total active employees matching search criteria."""
-        clauses = []
-        params = []
-
-        if search:
-            search_param = f"%{search}%"
-            clauses.append("(employee_id LIKE %s OR first_name LIKE %s OR last_name LIKE %s)")
-            params.extend([search_param, search_param, search_param])
-
-        if department_id:
-            clauses.append("department_id = %s")
-            params.append(department_id)
-
-        where_str = f"WHERE {' AND '.join(clauses)}" if clauses else ""
-        sql = f"SELECT COUNT(*) as cnt FROM {self.tbl_emp_oltp} {where_str}"
-        rows = self._execute_query(sql, tuple(params))
-        return rows[0]["cnt"] if rows else 0
-
     def get_departments(self) -> List[Dict[str, Any]]:
-        """Fetches all operational departments."""
-        sql = f"SELECT * FROM {self.tbl_dept_oltp} ORDER BY department_id"
-        return self._execute_query(sql)
+        """Returns all organizational departments."""
+        sql = f"SELECT department_id, department_name FROM {self.tbl_dept_oltp} ORDER BY department_id"
+        rows = self._execute_query(sql)
+        if not rows:
+            rows = self._execute_query(f"SELECT department_id, department_name FROM {self.tbl_dept_dw} ORDER BY department_id")
+        return rows
 
     def onboard_employee(self, emp: Employee) -> bool:
         """
-        Onboards a new employee into OLTP and provisions initial version in the SCD2 Data Warehouse.
+        Registers a new employee into operational storage (OLTP) and
+        automatically provisions Version 1 in Dim_Employee (SCD Type 2).
         """
         emp.validate()
 
-        # 1. Fetch department name
+        # 1. Fetch Department Name
         dept_rows = self._execute_query(
             f"SELECT department_name FROM {self.tbl_dept_oltp} WHERE department_id = %s",
             (emp.department_id,)
         )
         dept_name = dept_rows[0]["department_name"] if dept_rows else "General"
-        emp.department_name = dept_name
 
-        # 2. Insert into OLTP (Use INSERT OR REPLACE for SQLite, or standard insert for MySQL)
-        insert_verb = "INSERT INTO" if self.backend == "mysql" else "INSERT OR REPLACE INTO"
-        sql_oltp = f"""
-            {insert_verb} {self.tbl_emp_oltp} (
-                employee_id, first_name, last_name, email, phone, gender, age,
-                marital_status, hire_date, department_id, department_name, job_role, education_field,
-                monthly_income, overtime, years_at_company, attrition, status
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
-        self._execute_update(sql_oltp, (
-            emp.employee_id, emp.first_name, emp.last_name, emp.email, emp.phone, emp.gender, emp.age,
-            emp.marital_status, emp.hire_date, emp.department_id, dept_name, emp.job_role, emp.education_field,
-            emp.monthly_income, emp.overtime, emp.years_at_company, emp.attrition, emp.status
-        ))
+        # 2. Insert into OLTP
+        if self.backend == "sqlite":
+            sql_oltp = f"""
+                INSERT INTO {self.tbl_emp_oltp} (
+                    employee_id, first_name, last_name, email, phone, gender, age,
+                    marital_status, hire_date, department_id, department_name, job_role, education_field,
+                    monthly_income, overtime, years_at_company, attrition, status
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            self._execute_update(sql_oltp, (
+                emp.employee_id, emp.first_name, emp.last_name, emp.email, emp.phone, emp.gender, emp.age,
+                emp.marital_status, emp.hire_date, emp.department_id, dept_name, emp.job_role, emp.education_field,
+                emp.monthly_income, emp.overtime, emp.years_at_company, emp.attrition, emp.status
+            ))
+        else:
+            sql_oltp = f"""
+                INSERT INTO {self.tbl_emp_oltp} (
+                    employee_id, first_name, last_name, email, phone, gender, age,
+                    marital_status, hire_date, department_id, job_role, education_field,
+                    monthly_income, overtime, years_at_company, attrition, status
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            self._execute_update(sql_oltp, (
+                emp.employee_id, emp.first_name, emp.last_name, emp.email, emp.phone, emp.gender, emp.age,
+                emp.marital_status, emp.hire_date, emp.department_id, emp.job_role, emp.education_field,
+                emp.monthly_income, emp.overtime, emp.years_at_company, emp.attrition, emp.status
+            ))
 
         # 3. Provision Initial Version (Version 1) in Dim_Employee (SCD Type 2)
         sql_dw = f"""
@@ -174,6 +203,42 @@ class EmployeeManager(BaseManager):
             emp.hire_date
         ))
 
+        logger.info("Onboarded employee %s (%s) and created Dim_Employee Version 1", emp.employee_id, emp.full_name)
+        return True
+
+    def create(self, emp: Employee) -> bool:
+        """Alias for onboard_employee to support standard CRUD interface."""
+        return self.onboard_employee(emp)
+
+    def get(self, employee_id: str) -> Optional[Employee]:
+        """Alias for get_employee to support standard CRUD interface."""
+        return self.get_employee(employee_id)
+
+    def update(self, emp: Employee) -> bool:
+        """Updates employee attributes in operational storage."""
+        emp.validate()
+        sql = f"""
+            UPDATE {self.tbl_emp_oltp}
+            SET first_name = %s, last_name = %s, email = %s, phone = %s,
+                gender = %s, age = %s, marital_status = %s, department_id = %s,
+                job_role = %s, education_field = %s,
+                monthly_income = %s, overtime = %s, status = %s
+            WHERE UPPER(TRIM(employee_id)) = UPPER(TRIM(%s))
+        """
+        self._execute_update(sql, (
+            emp.first_name, emp.last_name, emp.email, emp.phone,
+            emp.gender, emp.age, emp.marital_status, emp.department_id,
+            emp.job_role, emp.education_field,
+            float(emp.monthly_income), emp.overtime, emp.status, emp.employee_id
+        ))
+        logger.info("Updated employee %s in operational storage", emp.employee_id)
+        return True
+
+    def delete(self, employee_id: str) -> bool:
+        """Removes an employee record from operational and dimension stores."""
+        self._execute_update(f"DELETE FROM {self.tbl_emp_oltp} WHERE UPPER(TRIM(employee_id)) = UPPER(TRIM(%s))", (employee_id,))
+        self._execute_update(f"DELETE FROM {self.tbl_emp_dw} WHERE UPPER(TRIM(employee_id)) = UPPER(TRIM(%s))", (employee_id,))
+        logger.info("Deleted employee %s from operational and warehouse stores", employee_id)
         return True
 
     def reassign_employee_role_or_dept(
@@ -204,7 +269,7 @@ class EmployeeManager(BaseManager):
         """
         dw_rows = self._execute_query(sql_lookup, (employee_id,))
         if not dw_rows:
-            raise ValueError(f"Employee {employee_id} not found in Data Warehouse active dimensions.")
+            raise EntityNotFoundError(f"Employee {employee_id} not found in Data Warehouse active dimensions.")
 
         current_ver_record = dw_rows[0]
         old_dim_id = current_ver_record["employee_dim_id"]
@@ -243,15 +308,30 @@ class EmployeeManager(BaseManager):
         ))
 
         # Step 4: Update operational record in OLTP
-        sql_update_oltp = f"""
-            UPDATE {self.tbl_emp_oltp}
-            SET department_id = %s,
-                department_name = %s,
-                job_role = %s,
-                monthly_income = %s
-            WHERE UPPER(TRIM(employee_id)) = UPPER(TRIM(%s))
-        """
-        self._execute_update(sql_update_oltp, (new_department_id, new_dept_name, new_job_role, float(new_monthly_income), employee_id))
+        if self.backend == "sqlite":
+            sql_update_oltp = f"""
+                UPDATE {self.tbl_emp_oltp}
+                SET department_id = %s,
+                    department_name = %s,
+                    job_role = %s,
+                    monthly_income = %s
+                WHERE UPPER(TRIM(employee_id)) = UPPER(TRIM(%s))
+            """
+            self._execute_update(sql_update_oltp, (new_department_id, new_dept_name, new_job_role, float(new_monthly_income), employee_id))
+        else:
+            sql_update_oltp = f"""
+                UPDATE {self.tbl_emp_oltp}
+                SET department_id = %s,
+                    job_role = %s,
+                    monthly_income = %s
+                WHERE UPPER(TRIM(employee_id)) = UPPER(TRIM(%s))
+            """
+            self._execute_update(sql_update_oltp, (new_department_id, new_job_role, float(new_monthly_income), employee_id))
+
+        logger.info(
+            "SCD Type 2 Transition for %s: Version %d expired, Version %d active (dept: %s, role: %s, salary: %.2f)",
+            employee_id, old_version, new_version, new_dept_name, new_job_role, float(new_monthly_income)
+        )
 
         return {
             "status": "SUCCESS",

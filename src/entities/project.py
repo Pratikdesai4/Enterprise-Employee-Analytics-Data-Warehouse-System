@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any
 import datetime
 
+from src.exceptions import ValidationError
+
 
 @dataclass
 class Project:
@@ -46,9 +48,9 @@ class Project:
     def validate(self) -> bool:
         """Validates project constraints."""
         if not self.project_name or not self.project_name.strip():
-            raise ValueError("Project name cannot be empty.")
+            raise ValidationError("Project name cannot be empty.")
         if self.budget < 0:
-            raise ValueError("Project budget cannot be negative.")
+            raise ValidationError("Project budget cannot be negative.")
         return True
 
     def to_dict(self) -> Dict[str, Any]:

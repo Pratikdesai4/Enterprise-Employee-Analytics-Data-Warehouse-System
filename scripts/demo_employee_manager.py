@@ -1,55 +1,63 @@
 #!/usr/bin/env python
-# demo_employee_manager.py – quick sanity‑check for the OOP backend
+"""
+demo_employee_manager.py – Sanity-check verification script for the OOP backend.
+Uses canonical src/ entities and managers.
+"""
 
 import uuid
-import sys, os
+import sys
+import os
 from datetime import date
 
-# Add the scripts directory to PYTHONPATH so imports work from the project root
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "")))
+# Ensure workspace root is in sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from services.employee_manager import EmployeeManager
-from models import Employee
+from src.entities.employee import Employee
+from src.managers.employee_manager import EmployeeManager
+
 
 def main():
     mgr = EmployeeManager()
 
-    # 1️⃣ Create a dummy employee
+    # 1️⃣ Create a test employee
+    emp_id = f"EMP-{uuid.uuid4().hex[:6].upper()}"
     emp = Employee(
-        employee_id=f"EMP-{uuid.uuid4().hex[:6].upper()}",
+        employee_id=emp_id,
         first_name="Alice",
         last_name="Smith",
-        email="alice.smith@example.com",
-        phone="555-123-4567",
+        email=f"alice.{uuid.uuid4().hex[:4]}@enterprise.corp",
+        phone="+1-555-123-4567",
         gender="Female",
         age=30,
         marital_status="Single",
-        hire_date=date(2022, 5, 1),
+        hire_date=date(2022, 5, 1).isoformat(),
         department_id=4,
         department_name="Software Engineering",
         job_role="Software Engineer",
         education_field="Computer Science",
         monthly_income=8500.00,
     )
-    print("[Demo] Creating employee …")
+    print(f"[Demo] Creating employee {emp_id} …")
     mgr.create(emp)
 
     # 2️⃣ Read it back
     fetched = mgr.get(emp.employee_id)
-    print("[Demo] Fetched:", fetched)
+    print(f"[Demo] Fetched: {fetched.full_name} ({fetched.job_role}, ${fetched.monthly_income:,.2f})")
 
     # 3️⃣ Update a mutable field
     fetched.monthly_income = 9100.00
     mgr.update(fetched)
-    print("[Demo] Updated monthly_income to 9100.00")
+    print("[Demo] Updated monthly_income to $9,100.00")
 
     # 4️⃣ Verify update
     refreshed = mgr.get(emp.employee_id)
-    print("[Demo] After update:", refreshed.monthly_income)
+    print(f"[Demo] After update verified: ${refreshed.monthly_income:,.2f}")
 
     # 5️⃣ Clean up (delete)
     mgr.delete(emp.employee_id)
-    print("[Demo] Deleted employee", emp.employee_id)
+    print(f"[Demo] Deleted test employee {emp.employee_id}")
+    print("[Demo] OOP Backend Verification Completed Successfully!")
+
 
 if __name__ == "__main__":
     main()

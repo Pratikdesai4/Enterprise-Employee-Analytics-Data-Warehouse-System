@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any
 import datetime
 
+from src.exceptions import ValidationError
+
 
 @dataclass
 class PerformanceReview:
@@ -69,13 +71,13 @@ class PerformanceReview:
     def validate(self) -> bool:
         """Enforces domain review rules."""
         if not (1 <= self.performance_rating <= 5):
-            raise ValueError(f"Performance rating must be between 1 and 5 (got {self.performance_rating}).")
+            raise ValidationError(f"Performance rating must be between 1 and 5 (got {self.performance_rating}).")
         if not (1 <= self.work_life_balance <= 4):
-            raise ValueError(f"Work life balance must be between 1 and 4 (got {self.work_life_balance}).")
+            raise ValidationError(f"Work life balance must be between 1 and 4 (got {self.work_life_balance}).")
         if not (1 <= self.job_satisfaction <= 4):
-            raise ValueError(f"Job satisfaction must be between 1 and 4 (got {self.job_satisfaction}).")
+            raise ValidationError(f"Job satisfaction must be between 1 and 4 (got {self.job_satisfaction}).")
         if not (1 <= self.environment_satisfaction <= 4):
-            raise ValueError(f"Environment satisfaction must be between 1 and 4 (got {self.environment_satisfaction}).")
+            raise ValidationError(f"Environment satisfaction must be between 1 and 4 (got {self.environment_satisfaction}).")
         return True
 
     def to_dict(self) -> Dict[str, Any]:
@@ -94,7 +96,6 @@ class PerformanceReview:
             "environment_satisfaction": self.environment_satisfaction,
             "promotion_given": self.promotion_given,
             "attrition_risk_score": self.attrition_risk_score,
-            "risk_level": self.risk_level,
             "tenure_at_review": self.tenure_at_review
         }
 
@@ -115,5 +116,5 @@ class PerformanceReview:
             environment_satisfaction=int(data.get("environment_satisfaction", 3)),
             promotion_given=int(data.get("promotion_given", 0)),
             attrition_risk_score=int(data.get("attrition_risk_score", 0)),
-            tenure_at_review=int(data.get("tenure_at_review", 0))
+            tenure_at_review=int(data.get("tenure_at_review", 1))
         )
