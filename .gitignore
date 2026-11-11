@@ -26,3 +26,9 @@ Thumbs.db
 # IDE files
 .vscode/
 .idea/
+
+# Ignore all database files and synthesized data
+*.db
+*.sqlite
+data/enterprise_analytics.db
+data/synthesized/

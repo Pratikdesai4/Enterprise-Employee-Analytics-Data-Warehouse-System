@@ -19,7 +19,7 @@ from src.managers.employee_manager import EmployeeManager
 def main():
     mgr = EmployeeManager()
 
-    # 1️⃣ Create a test employee
+    # 1️ Create a test employee
     emp_id = f"EMP-{uuid.uuid4().hex[:6].upper()}"
     emp = Employee(
         employee_id=emp_id,
@@ -40,20 +40,20 @@ def main():
     print(f"[Demo] Creating employee {emp_id} …")
     mgr.create(emp)
 
-    # 2️⃣ Read it back
+    # 2️ Read it back
     fetched = mgr.get(emp.employee_id)
     print(f"[Demo] Fetched: {fetched.full_name} ({fetched.job_role}, ${fetched.monthly_income:,.2f})")
 
-    # 3️⃣ Update a mutable field
+    # 3️ Update a mutable field
     fetched.monthly_income = 9100.00
     mgr.update(fetched)
     print("[Demo] Updated monthly_income to $9,100.00")
 
-    # 4️⃣ Verify update
+    # 4️ Verify update
     refreshed = mgr.get(emp.employee_id)
     print(f"[Demo] After update verified: ${refreshed.monthly_income:,.2f}")
 
-    # 5️⃣ Clean up (delete)
+    # 5️ Clean up (delete)
     mgr.delete(emp.employee_id)
     print(f"[Demo] Deleted test employee {emp.employee_id}")
     print("[Demo] OOP Backend Verification Completed Successfully!")
