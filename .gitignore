@@ -27,6 +27,10 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Environment variables
+.env
+.env.local
+
 # Ignore all database files and synthesized data
 *.db
 *.sqlite
