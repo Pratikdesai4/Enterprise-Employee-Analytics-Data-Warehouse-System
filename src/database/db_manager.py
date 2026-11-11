@@ -71,8 +71,8 @@ class DatabaseConnection:
 
     @staticmethod
     def _default_config() -> Dict[str, Any]:
-        """Loads default configuration from environment or fallback."""
-        return {
+        """Loads default configuration from Streamlit secrets, environment, or fallback."""
+        cfg = {
             "backend": os.getenv("DB_BACKEND", "auto"),
             "mysql_host": os.getenv("MYSQL_HOST", "127.0.0.1"),
             "mysql_port": int(os.getenv("MYSQL_PORT", 3306)),
@@ -83,20 +83,51 @@ class DatabaseConnection:
             "sqlite_path": os.getenv("SQLITE_PATH", os.path.join("data", "enterprise_analytics.db"))
         }
 
+        # Seamlessly load from Streamlit Cloud Secrets (st.secrets) if deployed
+        try:
+            import streamlit as st
+            if hasattr(st, "secrets"):
+                if "app" in st.secrets and "backend" in st.secrets["app"]:
+                    cfg["backend"] = st.secrets["app"]["backend"]
+                if "mysql" in st.secrets:
+                    sec = st.secrets["mysql"]
+                    cfg["mysql_host"] = sec.get("host", cfg["mysql_host"])
+                    cfg["mysql_port"] = int(sec.get("port", cfg["mysql_port"]))
+                    cfg["mysql_user"] = sec.get("user", cfg["mysql_user"])
+                    cfg["mysql_password"] = sec.get("password", cfg["mysql_password"])
+                    cfg["mysql_oltp_db"] = sec.get("oltp_database", cfg["mysql_oltp_db"])
+                    cfg["mysql_olap_db"] = sec.get("olap_database", cfg["mysql_olap_db"])
+                    cfg["backend"] = "mysql"
+        except Exception:
+            pass
+
+        return cfg
+
+    def _get_mysql_kwargs(self, database: Optional[str] = None) -> Dict[str, Any]:
+        """Builds connection kwargs with SSL/TLS support for cloud MySQL providers."""
+        target_db = database or self.config["mysql_oltp_db"]
+        kwargs: Dict[str, Any] = {
+            "host": self.config["mysql_host"],
+            "port": self.config["mysql_port"],
+            "user": self.config["mysql_user"],
+            "password": self.config["mysql_password"],
+            "database": target_db,
+            "cursorclass": DictCursor,
+            "connect_timeout": 10
+        }
+        # Automatically enable TLS/SSL for remote cloud hosts (e.g. TiDB Cloud port 4000, Aiven, AWS RDS)
+        if self.config["mysql_host"] not in ("127.0.0.1", "localhost") or self.config["mysql_port"] == 4000:
+            kwargs["ssl_verify_cert"] = True
+            kwargs["ssl_verify_identity"] = True
+        return kwargs
+
     def _connect(self) -> None:
         """Determines best database backend and establishes connection."""
         if self.backend in ("mysql", "auto") and PYMYSQL_AVAILABLE:
             try:
                 # Attempt MySQL test connection
-                conn = pymysql.connect(
-                    host=self.config["mysql_host"],
-                    port=self.config["mysql_port"],
-                    user=self.config["mysql_user"],
-                    password=self.config["mysql_password"],
-                    database=self.config["mysql_oltp_db"],
-                    connect_timeout=2,
-                    cursorclass=DictCursor
-                )
+                conn_kwargs = self._get_mysql_kwargs()
+                conn = pymysql.connect(**conn_kwargs)
                 conn.close()
                 self._active_backend = "mysql"
                 logger.info("Successfully connected to MySQL server at %s:%s",
@@ -182,7 +213,10 @@ class DatabaseConnection:
                     f"mysql+pymysql://{self.config['mysql_user']}:{self.config['mysql_password']}"
                     f"@{self.config['mysql_host']}:{self.config['mysql_port']}/{target_db}"
                 )
-                engine = create_engine(url, pool_pre_ping=True, pool_recycle=3600)
+                connect_args = {}
+                if self.config["mysql_host"] not in ("127.0.0.1", "localhost") or self.config["mysql_port"] == 4000:
+                    connect_args = {"ssl_verify_cert": True, "ssl_verify_identity": True}
+                engine = create_engine(url, connect_args=connect_args, pool_pre_ping=True, pool_recycle=3600)
             else:
                 engine = create_engine(f"sqlite:///{os.path.abspath(self.sqlite_path)}")
 
@@ -199,15 +233,9 @@ class DatabaseConnection:
         if self._active_backend == "mysql":
             target_db = database or self.config["mysql_oltp_db"]
             try:
-                conn = pymysql.connect(
-                    host=self.config["mysql_host"],
-                    port=self.config["mysql_port"],
-                    user=self.config["mysql_user"],
-                    password=self.config["mysql_password"],
-                    database=target_db,
-                    cursorclass=DictCursor,
-                    autocommit=False
-                )
+                conn_kwargs = self._get_mysql_kwargs(target_db)
+                conn_kwargs["autocommit"] = False
+                conn = pymysql.connect(**conn_kwargs)
             except Exception as e:
                 logger.error("Failed to connect to MySQL database %s: %s", target_db, e)
                 raise DatabaseError(f"MySQL connection failed: {e}") from e
