@@ -18,12 +18,79 @@ from src.entities.project import Project
 from src.entities.review import PerformanceReview
 from src.managers.employee_manager import EmployeeManager
 from src.managers.project_manager import ProjectManager
+from src.exceptions import ValidationError
+from src.ui import apply_ui_theme, render_page_header, render_sidebar
 from src.ui import apply_ui_theme
 from src.auth import has_permission, require_authentication
 
 st.set_page_config(page_title="HR Operations Console", layout="wide")
 apply_ui_theme()
 
+
+def validate_onboarding_inputs(
+    employee_id: str,
+    first_name: str,
+    last_name: str,
+    email: str,
+    phone: str,
+    age: int,
+    hire_date: datetime.date,
+    department_id,
+    job_role: str,
+    monthly_income: float,
+) -> tuple[list[str], list[str]]:
+    """Return required-field and data-validation messages for onboarding."""
+    missing = []
+    errors = []
+
+    if not employee_id.strip():
+        missing.append("Employee ID is required.")
+    if not first_name.strip():
+        missing.append("First Name is required.")
+    if not last_name.strip():
+        missing.append("Last Name is required.")
+    if not email.strip():
+        missing.append("Corporate Email is required.")
+    if not department_id:
+        missing.append("Please select a department.")
+    if not job_role.strip():
+        missing.append("Job Role is required.")
+    if not hire_date:
+        missing.append("Hire Date is required.")
+
+    if employee_id.strip() and not re.fullmatch(r"EMP-9\d{5,}", employee_id.strip()):
+        errors.append("Invalid Employee ID. Use EMP-9 followed by at least five digits.")
+    if email.strip() and not re.fullmatch(
+        r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z]{2,}",
+        email.strip(),
+    ):
+        errors.append("Invalid corporate email address. Please enter a valid email.")
+    if phone.strip():
+        phone_digits = re.sub(r"\D", "", phone.strip())
+        if not re.fullmatch(r"[0-9+().\-\s]{7,25}", phone.strip()) or not 7 <= len(phone_digits) <= 15:
+            errors.append("Invalid contact number. Use 7-15 digits and valid phone characters.")
+    else:
+        missing.append("Contact Phone is required.")
+    if age < 18 or age > 75:
+        errors.append("Age must be between 18 and 75.")
+    if monthly_income <= 0:
+        errors.append("Monthly Compensation must be greater than zero.")
+    if hire_date and hire_date > datetime.date.today():
+        errors.append("Hire Date cannot be in the future.")
+
+    return missing, errors
+
+
+render_sidebar(
+    "HR operations",
+    "Employee management",
+    "Employees, projects, staffing, and reviews.",
+)
+render_page_header(
+    "HR operations",
+    "HR Operations Console",
+    "Manage employee records, projects, and performance reviews.",
+)
 current_user = require_authentication()
 can_write = has_permission(current_user["role"], "write")
 
@@ -88,19 +155,18 @@ proj_mgr = ProjectManager(db)
 
 # Tab Navigation (Clean corporate tab titles without emojis)
 tabs = st.tabs([
-    "Employee Onboarding",
-    "Role & Department Transitions (SCD Type 2)",
-    "Project Initiatives & Staffing",
-    "Performance Appraisals",
-    "Workforce Directory & Audit"
+    "Onboarding",
+    "Role & Department Changes",
+    "Projects & Staffing",
+    "Performance Reviews",
+    "Employee Directory"
 ])
 
 # =============================================================================
 # TAB 1: ONBOARD EMPLOYEE
 # =============================================================================
 with tabs[0]:
-    st.markdown('<div class="section-title">New Employee Registration</div>', unsafe_allow_html=True)
-    st.caption("Records operational attributes in OLTP and provisions initial version (Version 1) in Dim_Employee.")
+    st.markdown('<div class="section-title">Add employee</div>', unsafe_allow_html=True)
 
     with st.form("onboard_form", clear_on_submit=False):
         col1, col2, col3 = st.columns(3)
@@ -127,7 +193,8 @@ with tabs[0]:
             overtime = st.selectbox("Overtime Status", ["No", "Yes"])
 
         with col3:
-            dept_selected = st.selectbox("Assigned Department", list(dept_dict.keys()), index=3 if len(dept_dict) > 3 else 0)
+            department_options = ["-- Select Department --"] + list(dept_dict.keys())
+            dept_selected = st.selectbox("Assigned Department", department_options)
             job_role = st.text_input("Job Role / Functional Title", value="Software Engineer")
             education = st.selectbox("Education Background", [
                 "Computer Science", "Life Sciences", "Medical", "Marketing",
@@ -135,61 +202,80 @@ with tabs[0]:
             ])
             monthly_income = st.number_input("Monthly Compensation ($USD)", min_value=1000.0, max_value=50000.0, value=8500.0, step=250.0)
 
-        submitted = st.form_submit_button("Submit Onboarding Record", type="primary")
+        submitted = st.form_submit_button("Add employee", type="primary")
 
         if submitted:
             emp_id_val = emp_id_input.strip()
+            first_name_val = first_name.strip()
+            last_name_val = last_name.strip()
             email_val = email.strip().lower()
+            department_id = dept_dict.get(dept_selected)
+            missing, errors = validate_onboarding_inputs(
+                employee_id=emp_id_val,
+                first_name=first_name_val,
+                last_name=last_name_val,
+                email=email_val,
+                phone=phone.strip(),
+                age=int(age),
+                hire_date=hire_date,
+                department_id=department_id,
+                job_role=job_role,
+                monthly_income=float(monthly_income),
+            )
 
-            # 1. Strict Employee ID format validation: EMP-9 followed by 5+ digits
-            if not re.match(r"^EMP-9\d{5,}$", emp_id_val):
-                st.error(
-                    f"❌ Invalid Employee ID format: '{emp_id_val}'. "
-                    "Employee ID must start with 'EMP-9' followed by at least 5 digits "
-                    "(e.g., EMP-900004, EMP-900023, EMP-9001000). Record was NOT saved to the database."
-                )
-            # 2. Strict Corporate Email validation
-            elif not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$", email_val):
-                st.error(
-                    f"❌ Invalid Corporate Email format: '{email_val}'. "
-                    "Email must follow standard format with a valid domain (e.g., user@enterprise.corp or name@domain.com). "
-                    "Record was NOT saved to the database."
-                )
-            else:
+            if missing:
+                st.warning("Employee record could not be added because required information is missing.")
+                for message in missing:
+                    st.warning(message)
+            if errors:
+                st.error("Invalid employee record. Please correct the fields before submitting.")
+                for message in errors:
+                    st.error(message)
+
+            if not missing and not errors:
                 try:
-                    new_emp = Employee(
-                        employee_id=emp_id_val,
-                        first_name=first_name.strip(),
-                        last_name=last_name.strip(),
-                        email=email_val,
-                        phone=phone.strip(),
-                        gender=gender,
-                        age=int(age),
-                        marital_status=marital_status,
-                        hire_date=hire_date.isoformat(),
-                        department_id=dept_dict[dept_selected],
-                        job_role=job_role.strip(),
-                        education_field=education,
-                        monthly_income=float(monthly_income),
-                        overtime=overtime,
-                        years_at_company=0,
-                        status="Active"
-                    )
-                    emp_mgr.onboard_employee(new_emp)
-                    st.session_state["target_emp_id"] = new_emp.employee_id
-                    st.success(f"Personnel record created for {new_emp.full_name} ({new_emp.employee_id}). Synchronized to Dim_Employee as Version 1.")
-                    st.info(f"To execute career progression or salary adjustments, switch to the 'Role & Department Transitions' tab. Employee ID {new_emp.employee_id} has been pre-selected.")
+                    if emp_mgr.get_employee(emp_id_val):
+                        st.error("Employee ID already exists. Please use a unique Employee ID.")
+                    else:
+                        new_emp = Employee(
+                            employee_id=emp_id_val,
+                            first_name=first_name_val,
+                            last_name=last_name_val,
+                            email=email_val,
+                            phone=phone.strip(),
+                            gender=gender,
+                            age=int(age),
+                            marital_status=marital_status,
+                            hire_date=hire_date.isoformat(),
+                            department_id=department_id,
+                            job_role=job_role.strip(),
+                            education_field=education,
+                            monthly_income=float(monthly_income),
+                            overtime=overtime,
+                            years_at_company=0,
+                            status="Active"
+                        )
+                        emp_mgr.onboard_employee(new_emp)
+                        st.session_state["target_emp_id"] = new_emp.employee_id
+                        st.success(f"Employee added: {new_emp.full_name} ({new_emp.employee_id}).")
+                        st.info(f"Employee {new_emp.employee_id} is ready for role or compensation changes.")
+                except ValidationError as e:
+                    st.error(f"Employee record could not be added: {e}")
                 except Exception as e:
-                    st.error(f"Onboarding Transaction Error: {e}")
+                    error_text = str(e).lower()
+                    if "unique" in error_text or "duplicate" in error_text:
+                        st.error("Employee ID already exists. Please use a unique Employee ID.")
+                    else:
+                        st.error("Employee record could not be added because of a database error. No changes were saved.")
 
 # =============================================================================
 # TAB 2: CAREER & ROLE REASSIGNMENT (SCD TYPE 2 LIVE TRIGGER)
 # =============================================================================
 with tabs[1]:
-    st.markdown('<div class="section-title">Career Progression & Role Reassignment (SCD Type 2)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Change employee role or department</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="callout-box">
-        <strong>Data Warehousing Logic:</strong> When an employee's department, job role, or compensation is adjusted, the operational record is updated in place while the dimensional store expires the active record (<code>is_current = 0</code>) and appends a successor record (<code>is_current = 1, version = n + 1</code>).
+        Update the employee's department, title, or monthly compensation.
     </div>
     """, unsafe_allow_html=True)
 
@@ -214,7 +300,8 @@ with tabs[1]:
     if curr_emp:
         st.markdown(f"**Selected Record:** {curr_emp.full_name} (`{curr_emp.employee_id}`) | Current Role: **{curr_emp.job_role}** | Department: **{curr_emp.department_name}** | Base Monthly Compensation: **${curr_emp.monthly_income:,.2f}**")
 
-        st.markdown("##### Adjustment Parameters")
+        st.markdown('<span class="audit-badge">Current record</span>', unsafe_allow_html=True)
+        st.markdown("##### New details")
         with st.form("scd2_update_form"):
             ucol1, ucol2, ucol3 = st.columns(3)
             with ucol1:
@@ -234,7 +321,7 @@ with tabs[1]:
                 )
 
             effective_date = st.date_input("Effective Transition Date", value=datetime.date.today())
-            trigger_scd2 = st.form_submit_button("Commit SCD Type 2 Transition", type="primary")
+            trigger_scd2 = st.form_submit_button("Save changes", type="primary")
 
             if trigger_scd2:
                 try:
@@ -245,12 +332,11 @@ with tabs[1]:
                         new_monthly_income=float(new_income),
                         effective_date=effective_date.isoformat()
                     )
-                    st.success(f"SCD Type 2 transition committed successfully. Version {result['expired_version']} expired; Version {result['new_active_version']} active as of {result['effective_date']}.")
+                    st.success(f"Changes saved. New version active from {result['effective_date']}.")
                 except Exception as e:
                     st.error(f"SCD Type 2 Update Failed: {e}")
 
-        # Dimensional Version History Table
-        st.markdown(f"##### Dimensional Version History: `{curr_emp.employee_id}`")
+        st.markdown(f"##### Employee history: `{curr_emp.employee_id}`")
         history = emp_mgr.get_employee_scd2_history(curr_emp.employee_id)
         if history:
             df_hist = pd.DataFrame(history)
@@ -274,12 +360,12 @@ with tabs[1]:
 # TAB 3: PROJECT INITIATIVES & STAFFING ALLOCATION
 # =============================================================================
 with tabs[2]:
-    st.markdown('<div class="section-title">Project Management & Resource Allocation</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Projects and staffing</div>', unsafe_allow_html=True)
 
     p_col1, p_col2 = st.columns([1, 1])
 
     with p_col1:
-        st.markdown("##### 1. Register Initiative")
+        st.markdown("##### Create project")
         with st.form("create_proj_form"):
             p_code = st.text_input("Project Code", value=f"PRJ-{datetime.datetime.now().strftime('%m%d')}")
             p_name = st.text_input("Project Name", placeholder="e.g. NextGen Microservices Overhaul")
@@ -289,7 +375,7 @@ with tabs[2]:
             p_end = st.date_input("Target Completion Date", value=datetime.date.today() + datetime.timedelta(days=180), key="pend")
             p_status = st.selectbox("Operational Status", ["Planning", "In Progress", "Completed", "On Hold"])
 
-            p_submit = st.form_submit_button("Register Initiative", type="primary")
+            p_submit = st.form_submit_button("Create project", type="primary")
             if p_submit:
                 try:
                     new_proj = Project(
@@ -308,12 +394,12 @@ with tabs[2]:
                     st.error(f"Project Creation Error: {e}")
 
     with p_col2:
-        st.markdown("##### 2. Staffing Capacity Allocation")
+        st.markdown("##### Assign employee")
         with st.form("assign_staff_form"):
             all_projs = proj_mgr.list_projects()
             proj_options = {f"{p.project_code} - {p.project_name}": p.project_id for p in all_projs} if all_projs else {}
 
-            selected_proj_label = st.selectbox("Target Initiative", list(proj_options.keys()) if proj_options else ["No Initiatives Available"])
+            selected_proj_label = st.selectbox("Project", list(proj_options.keys()) if proj_options else ["No Projects Available"])
             assign_emp_id = st.text_input("Assigned Employee ID", value="EMP-000042")
             assign_role = st.selectbox("Functional Role", [
                 "Project Lead", "Senior Developer", "Core Contributor",
@@ -321,7 +407,7 @@ with tabs[2]:
             ])
             allocation_pct = st.select_slider("Allocation Commitment (%)", options=[25, 50, 75, 100], value=50)
 
-            assign_submit = st.form_submit_button("Commit Allocation", type="primary")
+            assign_submit = st.form_submit_button("Assign employee", type="primary")
             if assign_submit:
                 if not proj_options:
                     st.error("No valid initiatives available for allocation.")
@@ -337,8 +423,7 @@ with tabs[2]:
 # TAB 4: SUBMIT PERFORMANCE REVIEW
 # =============================================================================
 with tabs[3]:
-    st.markdown('<div class="section-title">Performance Appraisal Entry</div>', unsafe_allow_html=True)
-    st.caption("Logs appraisal evaluation in OLTP and maps surrogate keys into Fact_PerformanceReviews.")
+    st.markdown('<div class="section-title">Record performance review</div>', unsafe_allow_html=True)
 
     with st.form("review_form"):
         r_col1, r_col2, r_col3 = st.columns(3)
@@ -358,7 +443,7 @@ with tabs[3]:
             job_sat = st.slider("Job Satisfaction (Scale: 1 to 4)", 1, 4, 3)
             env_sat = st.slider("Environment Satisfaction (Scale: 1 to 4)", 1, 4, 3)
 
-        rev_submitted = st.form_submit_button("Record Appraisal", type="primary")
+        rev_submitted = st.form_submit_button("Save review", type="primary")
 
         if rev_submitted:
             try:
@@ -384,4 +469,27 @@ with tabs[3]:
 # TAB 5: DIRECTORY & SCD2 INSPECTOR
 # =============================================================================
 with tabs[4]:
+    st.markdown('<div class="section-title">Employee directory</div>', unsafe_allow_html=True)
+
+    d_col1, d_col2 = st.columns([3, 1])
+    with d_col1:
+        dir_search = st.text_input("Filter Directory (ID or Name):", placeholder="e.g. EMP-000010 or Sophia")
+    with d_col2:
+        dir_dept = st.selectbox("Department Filter", ["All Departments"] + list(dept_dict.keys()))
+
+    dept_filter_id = dept_dict.get(dir_dept) if dir_dept != "All Departments" else None
+    matched_emps = emp_mgr.list_employees(limit=50, search=dir_search if dir_search else None, department_id=dept_filter_id)
+
+    if matched_emps:
+        df_dir = pd.DataFrame([e.to_dict() for e in matched_emps])
+        st.dataframe(
+            df_dir[[
+                "employee_id", "first_name", "last_name", "department_name",
+                "job_role", "monthly_income", "hire_date", "overtime", "status"
+            ]],
+            use_container_width=True,
+            hide_index=True
+        )
+    else:
+        st.info("No matching records returned.")
     render_workforce_directory(emp_mgr, dept_dict)

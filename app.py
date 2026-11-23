@@ -11,7 +11,7 @@ import streamlit as st
 import pandas as pd
 from src.database.db_manager import get_db
 from src.managers.analytics_manager import AnalyticsManager
-from src.ui import apply_ui_theme
+from src.ui import apply_ui_theme, render_page_header, render_sidebar
 from src.auth import has_permission, require_authentication
 
 # Streamlit Page Configuration
@@ -25,16 +25,17 @@ apply_ui_theme()
 
 
 def main():
+    db = get_db()
     current_user = require_authentication()
 
     # Sidebar
-    st.sidebar.markdown("### System Architecture")
-    st.sidebar.markdown("**Operational Store (OLTP):** 3NF Relational")
-    st.sidebar.markdown("**Data Warehouse (OLAP):** Star Schema")
-    st.sidebar.markdown("**Temporal Model:** SCD Type 2 Active")
+    render_sidebar(
+        "Overview",
+        "Enterprise HR analytics",
+        "Workforce metrics, operations, and reporting.",
+    )
     st.sidebar.divider()
 
-    db = get_db()
     backend_name = db.get_backend_name().upper()
     st.sidebar.markdown(f"""
     <div class="status-badge">
@@ -42,13 +43,13 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # Main Header
-    st.markdown('<div class="enterprise-header">Enterprise Employee Analytics & Data Warehouse System</div>', unsafe_allow_html=True)
-    st.caption(f"Signed in as {current_user['username']} ({current_user['role'].title()})")
-    st.markdown(
-        '<div class="enterprise-sub">Unified Operational Data Store (OLTP) and Dimensional Warehouse (OLAP) with Automated Slowly Changing Dimension (SCD Type 2) Lifecycle Tracking.</div>',
-        unsafe_allow_html=True
+    render_page_header(
+        "Enterprise HR analytics",
+        "Employee Analytics & Data Warehouse",
+        "Workforce metrics and reporting in one place.",
     )
+
+    st.caption(f"Signed in as {current_user['username']} ({current_user['role'].title()})")
 
     # Initialize Analytics Manager
     analytics_mgr = AnalyticsManager(db)
@@ -97,7 +98,7 @@ def main():
         st.markdown(f"""
         <div class="kpi-container">
             <div class="kpi-num">{kpis['avg_attrition_risk']:.1f}%</div>
-            <div class="kpi-title">Attrition Flight Risk</div>
+            <div class="kpi-title">Attrition Risk</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -105,7 +106,7 @@ def main():
         st.markdown(f"""
         <div class="kpi-container">
             <div class="kpi-num">{kpis['career_transitioned_employees']:,}</div>
-            <div class="kpi-title">SCD2 Historical Transitions</div>
+            <div class="kpi-title">Career History Records</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -113,19 +114,19 @@ def main():
     st.write("")
 
     # Portal Module Navigation Cards
-    st.markdown("### Functional Modules")
+    st.markdown('<div class="section-title">Platform areas</div>', unsafe_allow_html=True)
     card_col1, card_col2 = st.columns(2)
 
     with card_col1:
         st.markdown("""
         <div class="portal-card">
-            <h4>HR Operations Management (OLTP)</h4>
-            <p>Transactional console for personnel records, project staffing, and career progression management:</p>
+            <h4>HR Operations</h4>
+            <p>Manage employee records, projects, staffing, and reviews.</p>
             <ul>
-                <li><strong>Personnel Onboarding:</strong> Standardized data intake with corporate email and credential validation.</li>
-                <li><strong>Role & Compensation Transitions:</strong> Adjust department, title, or compensation with real-time <strong>SCD Type 2</strong> versioning in the data warehouse.</li>
-                <li><strong>Initiative Resource Allocation:</strong> Provision client and internal projects and allocate staffing capacity.</li>
-                <li><strong>Performance Appraisals:</strong> Log annual appraisals and synchronize with fact tables.</li>
+                <li>Onboard employees</li>
+                <li>Update roles and compensation</li>
+                <li>Manage projects and staffing</li>
+                <li>Record performance reviews</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
@@ -139,13 +140,13 @@ def main():
     with card_col2:
         st.markdown("""
         <div class="portal-card">
-            <h4>Executive Analytics & Business Intelligence (OLAP)</h4>
-            <p>Dimensional analytics powered directly by the Star Schema and advanced SQL window functions:</p>
+            <h4>Executive Analytics</h4>
+            <p>Review workforce performance, risk, pay, and career movement.</p>
             <ul>
-                <li><strong>Department Talent Rankings:</strong> Departmental performance tiers determined via SQL <code>DENSE_RANK()</code>.</li>
-                <li><strong>Longitudinal YoY Trajectories:</strong> Multi-year evaluation of merit salary adjustments and ratings.</li>
-                <li><strong>Flight Risk Diagnostics:</strong> Correlation models identifying compensation anomalies and turnover risk.</li>
-                <li><strong>Career Mobility Audits:</strong> Full historical SCD Type 2 career transitions and salary progression.</li>
+                <li>Compare department performance</li>
+                <li>Track pay and performance trends</li>
+                <li>Review attrition risk</li>
+                <li>Audit employee career history</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
@@ -154,15 +155,30 @@ def main():
     st.divider()
 
     # System Architecture Information
+    st.markdown('<div class="section-title">Data architecture</div>', unsafe_allow_html=True)
+    arch1, arch2, arch3 = st.columns(3)
+    with arch1:
+        st.markdown(
+            '<div class="portal-card"><div class="mini-label">01</div><h4>Operational store</h4><p>OLTP records for employees, projects, and reviews.</p></div>',
+            unsafe_allow_html=True,
+        )
+    with arch2:
+        st.markdown(
+            '<div class="portal-card"><div class="mini-label">02</div><h4>Historical warehouse</h4><p>OLAP history for roles, departments, and compensation.</p></div>',
+            unsafe_allow_html=True,
+        )
+    with arch3:
+        st.markdown(
+            '<div class="portal-card"><div class="mini-label">03</div><h4>Executive reporting</h4><p>Workforce and capacity insights for management.</p></div>',
+            unsafe_allow_html=True,
+        )
+
     with st.expander("System Architecture & Data Warehousing Specifications", expanded=False):
         st.markdown("""
-        #### Architecture Overview
-        - **OLTP Operational Store (3NF):** High-integrity relational schema handling transaction processing across `employees`, `departments`, `projects`, and `employee_project_assignments`.
-        - **OLAP Dimensional Warehouse (Star Schema):** Modeled around `Fact_PerformanceReviews` with integer surrogate keys referencing conformed dimensions (`Dim_Department`, `Dim_Project`, `Dim_Date`) and the temporal Slowly Changing Dimension (`Dim_Employee`).
-        - **SCD Type 2 Execution:**
-          - Department transfers, title changes, or compensation modifications trigger the expiration of the current active dimension record (`end_date = CURRENT_DATE, is_current = 0`).
-          - A successor record is appended (`start_date = CURRENT_DATE, end_date = NULL, is_current = 1, version = n + 1`).
-          - Past appraisals remain tied to their respective historical versions without retroactive disruption.
+        #### Architecture overview
+        - **OLTP:** Relational records for daily HR operations.
+        - **OLAP:** Star-schema warehouse for reporting and analysis.
+        - **SCD Type 2:** Preserves historical employee roles, departments, and compensation.
         """)
 
 

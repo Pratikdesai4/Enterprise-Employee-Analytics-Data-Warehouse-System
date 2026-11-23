@@ -15,6 +15,7 @@ import plotly.graph_objects as go
 import altair as alt
 from src.database.db_manager import get_db
 from src.managers.analytics_manager import AnalyticsManager
+from src.ui import apply_ui_theme, render_page_header, render_sidebar, style_plotly
 from src.ui import apply_ui_theme
 from src.auth import require_authentication
 
@@ -22,19 +23,45 @@ st.set_page_config(page_title="Executive Analytics Dashboard", layout="wide")
 apply_ui_theme()
 require_authentication()
 
-st.markdown('<div class="dash-header">Executive Analytics & Workforce Intelligence</div>', unsafe_allow_html=True)
-st.markdown('<div class="dash-sub">Multi-dimensional analytics driven directly by the OLAP Star Schema and SQL Window Functions.</div>', unsafe_allow_html=True)
+render_sidebar(
+    "Executive analytics",
+    "Workforce reporting",
+    "Performance, pay, risk, and career history.",
+)
+render_page_header(
+    "Executive analytics",
+    "Workforce Intelligence",
+    "Key workforce measures for management review.",
+)
 
 # Initialize Analytics DAL
 db = get_db()
 analytics_mgr = AnalyticsManager(db)
 
-# Sidebar Filters (Clean titles without emojis)
-st.sidebar.markdown("### Analytical Filters")
-year_filter = st.sidebar.selectbox("Evaluation Period (Year)", [2025, 2024, 2023, 2022, 2021], index=0)
+st.sidebar.markdown("### Filters")
+st.sidebar.markdown(
+    '<div class="sidebar-filter-label" style="color:#7dd3fc !important;">Year</div>',
+    unsafe_allow_html=True,
+)
+year_filter = st.sidebar.selectbox(
+    "Year",
+    [2025, 2024, 2023, 2022, 2021],
+    index=0,
+    label_visibility="collapsed",
+)
 dept_options = ["All Departments", "Research & Development", "Sales", "Human Resources", "Software Engineering", "Finance & Operations"]
-dept_filter = st.sidebar.selectbox("Department Scope", dept_options, index=0)
-top_n_filter = st.sidebar.slider("DENSE_RANK Cutoff Tier", min_value=1, max_value=5, value=3)
+st.sidebar.markdown(
+    '<div class="sidebar-filter-label" style="color:#7dd3fc !important;">Department</div>',
+    unsafe_allow_html=True,
+)
+dept_filter = st.sidebar.selectbox(
+    "Department",
+    dept_options,
+    index=0,
+    label_visibility="collapsed",
+)
+top_n_filter = st.sidebar.slider("Top performer tier", min_value=1, max_value=5, value=3)
+st.sidebar.divider()
 
 # Load Executive KPIs
 kpis = analytics_mgr.get_executive_kpis()
@@ -47,20 +74,19 @@ with k_col2:
 with k_col3:
     st.markdown(f'<div class="exec-card"><div class="exec-val">{kpis["avg_performance_rating"]:.2f}</div><div class="exec-lbl">Avg Score (/5)</div></div>', unsafe_allow_html=True)
 with k_col4:
-    st.markdown(f'<div class="exec-card"><div class="exec-val">{kpis["avg_attrition_risk"]:.1f}%</div><div class="exec-lbl">Flight Risk Index</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="exec-card"><div class="exec-val">{kpis["avg_attrition_risk"]:.1f}%</div><div class="exec-lbl">Attrition Risk</div></div>', unsafe_allow_html=True)
 with k_col5:
     st.markdown(f'<div class="exec-card"><div class="exec-val">{kpis["total_promotions"]:,}</div><div class="exec-lbl">Promotions Awarded</div></div>', unsafe_allow_html=True)
 with k_col6:
-    st.markdown(f'<div class="exec-card"><div class="exec-val">{kpis["career_transitioned_employees"]:,}</div><div class="exec-lbl">SCD2 Transitions</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="exec-card"><div class="exec-val">{kpis["career_transitioned_employees"]:,}</div><div class="exec-lbl">Career Changes</div></div>', unsafe_allow_html=True)
 
 st.write("")
 st.divider()
 
 # =============================================================================
-# SECTION 1: TOP PERFORMERS VIA SQL WINDOW FUNCTION DENSE_RANK()
+# SECTION 1: TOP PERFORMERS
 # =============================================================================
-st.markdown(f'<div class="section-title">Department Talent Rankings: Period {year_filter}</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-desc">Rankings evaluated using SQL Window Function: <code>DENSE_RANK() OVER (PARTITION BY department_name ORDER BY performance_rating DESC, percent_salary_hike DESC)</code></div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Department Performance Rankings</div>', unsafe_allow_html=True)
 
 dept_param = None if dept_filter == "All Departments" else dept_filter
 df_top = analytics_mgr.get_top_performers(year=year_filter, top_n=top_n_filter, department_name=dept_param)
@@ -80,7 +106,7 @@ if not df_top.empty:
                 "full_name": "Employee Name",
                 "percent_salary_hike": "Merit Hike (%)"
             },
-            title="Compensation & Merit Increase for Ranked Talent (Top 25)",
+            title="Top 25 Employees by Compensation",
             color_continuous_scale="Blues"
         )
         fig_top.update_layout(
@@ -89,6 +115,7 @@ if not df_top.empty:
             margin=dict(l=10, r=10, t=35, b=10),
             font=dict(family="sans-serif", size=11)
         )
+        style_plotly(fig_top, height=430)
         st.plotly_chart(fig_top, use_container_width=True)
 
     with table_col:
@@ -107,10 +134,9 @@ else:
 st.divider()
 
 # =============================================================================
-# SECTION 2: YEAR-OVER-YEAR (YOY) PERFORMANCE & COMPENSATION TRAJECTORIES
+# SECTION 2: PERFORMANCE AND COMPENSATION
 # =============================================================================
-st.markdown('<div class="section-title">Longitudinal Performance & Compensation Trajectories</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-desc">Longitudinal tracking of appraisal performance scores and merit salary adjustments across multi-year cycles.</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Performance & Compensation Trends</div>', unsafe_allow_html=True)
 
 df_yoy = analytics_mgr.get_yoy_performance_trends()
 
@@ -137,15 +163,16 @@ if not df_yoy.empty:
             textposition="top center"
         ))
         fig_yoy.update_layout(
-            title="Trend: Mean Performance Rating vs Merit Salary Increase",
+            title="Performance Rating and Merit Increase",
             xaxis=dict(title="Appraisal Year"),
-            yaxis=dict(title="Mean Merit Hike (%)"),
-            yaxis2=dict(title="Mean Rating (Scale: 1-5)", overlaying="y", side="right", range=[1, 5]),
+            yaxis=dict(title="Merit Increase (%)"),
+            yaxis2=dict(title="Performance Rating", overlaying="y", side="right", range=[1, 5]),
             legend=dict(x=0.01, y=0.99),
             height=390,
             margin=dict(l=10, r=10, t=35, b=10),
             font=dict(family="sans-serif", size=11)
         )
+        style_plotly(fig_yoy, height=390)
         st.plotly_chart(fig_yoy, use_container_width=True)
 
     with yoy_col2:
@@ -155,20 +182,19 @@ if not df_yoy.empty:
             y="total_promotions",
             text="total_promotions",
             labels={"review_year": "Year", "total_promotions": "Promotions Awarded"},
-            title="Total Promotions Granted by Cycle",
+            title="Promotions by Year",
             color="total_promotions",
             color_continuous_scale="Blues"
         )
-        fig_prom.update_layout(height=390, margin=dict(l=10, r=10, t=35, b=10), font=dict(family="sans-serif", size=11))
+        style_plotly(fig_prom, height=390)
         st.plotly_chart(fig_prom, use_container_width=True)
 
 st.divider()
 
 # =============================================================================
-# SECTION 3: ATTRITION RISK HEATMAP & FLIGHT RISK DIAGNOSTICS
+# SECTION 3: ATTRITION RISK
 # =============================================================================
-st.markdown('<div class="section-title">Attrition Diagnostics & Flight Risk Modeling</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-desc">Identification of flight-risk roles based on work-life balance, satisfaction indices, and tenure metrics.</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Attrition Risk</div>', unsafe_allow_html=True)
 
 df_attr = analytics_mgr.get_attrition_risk_analysis()
 
@@ -188,13 +214,13 @@ if not df_attr.empty:
                 "avg_risk_score": "Attrition Risk Score (0-100)",
                 "department_name": "Department"
             },
-            title="Work-Life Balance vs Attrition Risk by Functional Role"
+            title="Work-Life Balance and Attrition Risk"
         )
-        fig_scatter.update_layout(height=390, margin=dict(l=10, r=10, t=35, b=10), font=dict(family="sans-serif", size=11))
+        style_plotly(fig_scatter, height=390)
         st.plotly_chart(fig_scatter, use_container_width=True)
 
     with r_col2:
-        st.markdown("##### High Flight-Risk Functional Roles (Score ≥ 45)")
+        st.markdown("##### High-risk roles (45+)")
         df_high_risk = df_attr[df_attr["avg_risk_score"] >= 45].sort_values(by="avg_risk_score", ascending=False)
         st.dataframe(
             df_high_risk[["department_name", "job_role", "avg_risk_score", "avg_work_life_balance", "high_risk_count"]],
@@ -206,9 +232,9 @@ if not df_attr.empty:
 st.divider()
 
 # =============================================================================
-# SECTION 4: DEPARTMENT HEADCOUNT & ANNUAL PAYROLL SPEND
+# SECTION 4: WORKFORCE AND PAYROLL
 # =============================================================================
-st.markdown('<div class="section-title">Workforce Allocation & Payroll Expenditure by Department</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Workforce & Payroll by Department</div>', unsafe_allow_html=True)
 
 df_dept_dist = analytics_mgr.get_department_distribution()
 
@@ -219,11 +245,11 @@ if not df_dept_dist.empty:
             df_dept_dist,
             values="headcount",
             names="department_name",
-            title="Headcount Distribution by Business Unit",
+            title="Headcount by Department",
             hole=0.45,
             color_discrete_sequence=["#1E40AF", "#3B82F6", "#60A5FA", "#93C5FD", "#BFDBFE"]
         )
-        fig_donut.update_layout(height=370, margin=dict(l=10, r=10, t=35, b=10), font=dict(family="sans-serif", size=11))
+        style_plotly(fig_donut, height=370)
         st.plotly_chart(fig_donut, use_container_width=True)
 
     with d_col2:
@@ -233,21 +259,20 @@ if not df_dept_dist.empty:
             y="total_payroll_annual",
             text="total_payroll_annual",
             labels={"total_payroll_annual": "Annual Payroll ($USD)", "department_name": "Department"},
-            title="Annualized Payroll Expenditure by Business Unit",
+            title="Annual Payroll by Department",
             color="avg_salary",
             color_continuous_scale="Blues"
         )
         fig_pay.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
-        fig_pay.update_layout(height=370, margin=dict(l=10, r=10, t=35, b=10), font=dict(family="sans-serif", size=11))
+        style_plotly(fig_pay, height=370)
         st.plotly_chart(fig_pay, use_container_width=True)
 
 st.divider()
 
 # =============================================================================
-# SECTION 5: PROJECT ALLOCATION & BOTTLENECK ANALYSIS (ALTAIR VISUAL ENGINE)
+# SECTION 5: PROJECT CAPACITY
 # =============================================================================
-st.markdown('<div class="section-title">Project Allocation & Bottleneck Workload Diagnostics</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-desc">Interactive resource allocation analytics generated via Altair — identifies departmental workload pressure and staffing bottlenecks.</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Project Capacity</div>', unsafe_allow_html=True)
 
 df_proj_alloc = analytics_mgr.get_project_allocation_analysis()
 
@@ -284,14 +309,14 @@ if not df_proj_alloc.empty:
                 alt.Tooltip("bottleneck_status:N", title="Workload Risk")
             ]
         ).properties(
-            title="Department Staffing Capacity vs Active Initiatives (Altair Engine)",
+            title="Projects and Staff by Department",
             height=370
         ).configure_title(fontSize=13, anchor="start", color="#0F172A")
 
         st.altair_chart(alt_chart, use_container_width=True)
 
     with b_col2:
-        st.markdown("##### Department Workload & Bottleneck Registry")
+        st.markdown("##### Department capacity")
         st.dataframe(
             df_proj_alloc[[
                 "department_name", "active_projects", "assigned_staff",
@@ -307,10 +332,9 @@ else:
 st.divider()
 
 # =============================================================================
-# SECTION 6: SCD TYPE 2 ENTERPRISE MOBILITY AUDIT TRAIL
+# SECTION 6: EMPLOYEE CAREER HISTORY
 # =============================================================================
-st.markdown('<div class="section-title">SCD Type 2 Career Mobility & Historical Transition Audit</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-desc">Audit of historical dimension versions tracking promotions, departmental transfers, and salary trajectories preserved in Dim_Employee.</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Employee Career History</div>', unsafe_allow_html=True)
 
 df_scd2_audit = analytics_mgr.get_scd2_progression_audit(limit=30)
 if not df_scd2_audit.empty:
