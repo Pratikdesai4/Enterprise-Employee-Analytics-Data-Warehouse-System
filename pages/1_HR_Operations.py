@@ -104,14 +104,22 @@ st.markdown(f'<div class="op-header">{page_title}</div>', unsafe_allow_html=True
 st.markdown(f'<div class="op-sub">{page_subtitle}</div>', unsafe_allow_html=True)
 
 
-def render_workforce_directory(emp_mgr, dept_dict):
+def render_workforce_directory(emp_mgr, dept_dict, key_prefix):
     st.markdown('<div class="section-title">Workforce Directory & Audit Log</div>', unsafe_allow_html=True)
 
     d_col1, d_col2 = st.columns([3, 1])
     with d_col1:
-        dir_search = st.text_input("Filter Directory (ID or Name):", placeholder="e.g. EMP-000010 or Sophia")
+        dir_search = st.text_input(
+            "Filter Directory (ID or Name):",
+            placeholder="e.g. EMP-000010 or Sophia",
+            key=f"{key_prefix}_search"
+        )
     with d_col2:
-        dir_dept = st.selectbox("Department Filter", ["All Departments"] + list(dept_dict.keys()))
+        dir_dept = st.selectbox(
+            "Department Filter",
+            ["All Departments"] + list(dept_dict.keys()),
+            key=f"{key_prefix}_department"
+        )
 
     dept_filter_id = dept_dict.get(dir_dept) if dir_dept != "All Departments" else None
     matched_emps = emp_mgr.list_employees(
@@ -148,7 +156,7 @@ except Exception:
     dept_id_to_name = {v: k for k, v in dept_dict.items()}
 
 if not can_write:
-    render_workforce_directory(emp_mgr, dept_dict)
+    render_workforce_directory(emp_mgr, dept_dict, "read_only_directory")
     st.stop()
 
 proj_mgr = ProjectManager(db)
@@ -469,27 +477,4 @@ with tabs[3]:
 # TAB 5: DIRECTORY & SCD2 INSPECTOR
 # =============================================================================
 with tabs[4]:
-    st.markdown('<div class="section-title">Employee directory</div>', unsafe_allow_html=True)
-
-    d_col1, d_col2 = st.columns([3, 1])
-    with d_col1:
-        dir_search = st.text_input("Filter Directory (ID or Name):", placeholder="e.g. EMP-000010 or Sophia")
-    with d_col2:
-        dir_dept = st.selectbox("Department Filter", ["All Departments"] + list(dept_dict.keys()))
-
-    dept_filter_id = dept_dict.get(dir_dept) if dir_dept != "All Departments" else None
-    matched_emps = emp_mgr.list_employees(limit=50, search=dir_search if dir_search else None, department_id=dept_filter_id)
-
-    if matched_emps:
-        df_dir = pd.DataFrame([e.to_dict() for e in matched_emps])
-        st.dataframe(
-            df_dir[[
-                "employee_id", "first_name", "last_name", "department_name",
-                "job_role", "monthly_income", "hire_date", "overtime", "status"
-            ]],
-            use_container_width=True,
-            hide_index=True
-        )
-    else:
-        st.info("No matching records returned.")
-    render_workforce_directory(emp_mgr, dept_dict)
+    render_workforce_directory(emp_mgr, dept_dict, "hr_directory")
